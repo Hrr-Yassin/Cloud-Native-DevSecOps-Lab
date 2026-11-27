@@ -1,29 +1,14 @@
 # Cloud-Native DevSecOps Lab
 
-![K3s](https://img.shields.io/badge/K3s-Kubernetes-FFC61C?logo=kubernetes&logoColor=white)
-![OpenTofu](https://img.shields.io/badge/OpenTofu-Infrastructure-623CE4?logo=opentofu&logoColor=white)
-![Grafana](https://img.shields.io/badge/Grafana-Observability-F46800?logo=grafana&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-2EA44F)
+**A local K3s security lab that uses Security Desk, a remediation-tracking application, to test release, runtime, and recovery controls.**
 
-[Architecture](#architecture) · [Release pipeline](#release-pipeline) · [Run the checks](#reproduce) · [Evidence](evidence/)
+[Verified results](#verified-results) · [Architecture](#architecture) · [Release pipeline](#release-pipeline) · [Run the checks](#reproduce)
 
-A local Kubernetes security lab built around **Security Desk**, a small application for recording findings and tracking remediation. Operators create findings and manage status. Reviewers can read findings. The same workload exercises build, policy, release, runtime, and recovery controls.
+[![Security Desk operator view with a finding, its severity, and remediation status](evidence/live/desk-operator.png)](evidence/live/desk-operator.png)
 
-## Security Desk
+*Security Desk operator view from the lab exercise. Operators record findings and update remediation status. Reviewers have read-only access. [Reviewer view](evidence/live/desk-reviewer.png)*
 
-Operators record findings and move them through remediation. Reviewers have a read-only view of the same records.
-
-[![Security Desk operator view with the findings list and remediation controls](evidence/live/desk-operator.png)](evidence/live/desk-operator.png)
-
-[Open the reviewer screenshot](evidence/live/desk-reviewer.png)
-
-## Grafana dashboard
-
-The live lab dashboard brings application metrics, Kubernetes audit activity, and Falco runtime events into one view.
-
-[![Grafana overview captured during live lab validation](evidence/live/grafana-overview.png)](evidence/live/grafana-overview.png)
-
-## Validation
+## Verified results
 
 | Area | Evidence |
 | --- | --- |
@@ -34,6 +19,12 @@ The live lab dashboard brings application metrics, Kubernetes audit activity, an
 | Pending | GitHub-hosted validation and promotion, and deployment of the optional AWS extension |
 
 [Acceptance report](docs/assessment.md) · [Sanitized evidence](evidence/)
+
+## Grafana dashboard
+
+The live dashboard brings application metrics, Kubernetes audit activity, and Falco runtime events into one view.
+
+[![Grafana overview captured during live lab validation](evidence/live/grafana-overview.png)](evidence/live/grafana-overview.png)
 
 ## Architecture
 
