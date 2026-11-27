@@ -3,6 +3,7 @@ set -euo pipefail
 umask 077
 cd "$(dirname "$0")/.."
 source scripts/verify-target.sh
+source scripts/lib/registry-pull.sh
 require_lab_context
 image="${1:?An immutable image already deployed to this context is required}"
 fixture="${2:-compliant}"
@@ -103,7 +104,15 @@ metadata:
     pod-security.kubernetes.io/enforce-version: v1.35
 NAMESPACE
 owned=true
-sed "s|IMAGE_FOR_ACCEPTANCE|$image|g" security/fixtures/network-probe.yaml | kubectl create -f - >/dev/null
+probe="$work/network-probe.yaml"
+sed "s|IMAGE_FOR_ACCEPTANCE|$image|g" security/fixtures/network-probe.yaml > "$probe"
+if [[ -n "${LAB_REGISTRY_AUTH_FILE:-}" ]]; then
+  ensure_ghcr_pull_secret "$ns" "$image"
+  kubectl patch --local -f "$probe" --type=merge \
+    -p '{"spec":{"imagePullSecrets":[{"name":"desk-registry-pull"}]}}' -o yaml > "$work/network-probe-private.yaml"
+  probe="$work/network-probe-private.yaml"
+fi
+kubectl create -f "$probe" >/dev/null
 for service in desk desk-metrics; do
   kubectl -n security-desk get endpointslices -l "kubernetes.io/service-name=$service" -o json |
     jq -e 'any(.items[]?.endpoints[]?; .conditions.ready == true)' >/dev/null
