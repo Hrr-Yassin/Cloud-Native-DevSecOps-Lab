@@ -1,0 +1,19 @@
+{
+  "scope": "disposable OpenTofu/libvirt acceptance profile",
+  "resources_created": 6,
+  "kube_node": {
+    "node_ready": true,
+    "k3s_version": "v1.35.10+k3s1"
+  },
+  "deployment": {
+    "ready_replicas": 1,
+    "verified_archive_deployed_by_digest": true
+  },
+  "teardown_plan_deletes": 6,
+  "resources_destroyed": 6,
+  "remaining_disposable_libvirt_resources": 0,
+  "disposable_bridge_absent": true,
+  "primary_vm_identity_preserved": true,
+  "primary_state_unchanged": true,
+  "primary_configuration_plan": "no changes"
+}

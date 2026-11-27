@@ -1,0 +1,22 @@
+{
+  "scope": "local Docker and K3d execution of the GitHub workflow deployment step",
+  "docker_engine": "29.1.3",
+  "k3d": "v5.9.0",
+  "compliant": {
+    "exit_code": 0,
+    "https_behavior": "verified",
+    "chromium": "Chrome/158.0.8127.88",
+    "encrypted_restore": "verified",
+    "post_restart_record": "verified",
+    "admission_audit": "verified",
+    "secrets_encryption": "enabled",
+    "cluster_deleted": true
+  },
+  "noncompliant": {
+    "exit_code": 1,
+    "admission_policy": "desk-pod-controls",
+    "reason": "read-only container root filesystem required",
+    "cluster_deleted": true
+  },
+  "archive_sha256": "f73be906defdb87ea61c6b27aadfc4130623602375175833066a0c76857a0c11"
+}

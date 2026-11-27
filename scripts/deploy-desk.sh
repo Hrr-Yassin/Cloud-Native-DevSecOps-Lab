@@ -30,5 +30,6 @@ fi
 kubectl -n security-desk create secret tls desk-tls --cert="$directory/desk.crt" --key="$directory/desk.key"   --dry-run=client -o yaml | kubectl apply --server-side --field-manager=desk-bootstrap -f -
 sed "s|IMAGE_FOR_ACCEPTANCE|$image|g" deploy/base/workload.yaml | kubectl apply -f -
 kubectl apply -f deploy/base/ingress.yaml
+kubectl -n kube-system wait --for=create deployment/traefik --timeout=240s
 kubectl -n kube-system rollout status deployment/traefik --timeout=240s
 kubectl -n security-desk rollout status deployment/desk --timeout=180s

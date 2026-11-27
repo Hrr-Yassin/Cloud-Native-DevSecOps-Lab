@@ -1,0 +1,9 @@
+{
+  "verification": "GitHub returned commit records matching all workflow action pins",
+  "commits": {
+    "actions/checkout": "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+    "actions/setup-node": "53b83947a5a98c8d113130e565377fae1a50d02f",
+    "actions/upload-artifact": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+    "actions/download-artifact": "37930b1c2abaa49bbe596cd826c3c89aef350131"
+  }
+}

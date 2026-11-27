@@ -2,7 +2,7 @@
 
 A local Kubernetes security lab built around **Security Desk**, a small application for recording findings and tracking remediation. Operators create findings and manage status. Reviewers can read findings. The same workload exercises build, policy, release, runtime, and recovery controls.
 
-**Verified on the dedicated VM** are the signed image deployment, Kubernetes access and admission controls, trusted HTTPS, Security Desk and Grafana in Chromium, a Falco alert through Loki and Alertmanager, and an encrypted backup restored into a fresh workload. GitHub-hosted validation and promotion, applied teardown and AWS deployment remain open. [Acceptance report](docs/assessment.md) · [Sanitized evidence](evidence/)
+**Verified on the dedicated lab** are signed image deployment, Kubernetes access and admission controls, trusted HTTPS, Security Desk and Grafana in Chromium, a Falco alert through Loki and Alertmanager, and an encrypted backup restored into a fresh workload. A disposable guest verified complete VM teardown and the GitHub workflow deployment step on Docker and K3d. GitHub-hosted validation and promotion remain pending. AWS remains undeployed. [Acceptance report](docs/assessment.md) · [Sanitized evidence](evidence/)
 
 ## Architecture
 

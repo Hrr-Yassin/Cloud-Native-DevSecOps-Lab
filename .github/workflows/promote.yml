@@ -30,7 +30,7 @@ jobs:
           package-manager-cache: false
       - name: Install deployment tools
         run: |
-          scripts/install-ci-tools.sh "$RUNNER_TEMP/verified-bin" age cosign k3d
+          scripts/install-ci-tools.sh "$RUNNER_TEMP/verified-bin" age cosign k3d kubectl
           printf '%s\n' "$RUNNER_TEMP/verified-bin" >> "$GITHUB_PATH"
       - name: Verify the signature and deploy the exact digest
         env:

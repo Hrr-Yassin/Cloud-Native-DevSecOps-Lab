@@ -1,0 +1,17 @@
+{
+  "format": "Docker image archive",
+  "sha256": "f73be906defdb87ea61c6b27aadfc4130623602375175833066a0c76857a0c11",
+  "scanned_archive_matches_deployment_input": true,
+  "blocking_findings": 0,
+  "sbom": {
+    "format": "CycloneDX",
+    "components": 15
+  },
+  "findings_by_severity": {
+    "critical": 0,
+    "high": 2,
+    "medium": 35,
+    "low": 17,
+    "unknown": 2
+  }
+}

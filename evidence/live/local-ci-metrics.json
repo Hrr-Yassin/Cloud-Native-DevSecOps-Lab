@@ -1,0 +1,7 @@
+{
+  "scope": "local",
+  "acceptance_status": 1,
+  "image_scan_passed": 1,
+  "sbom_generated": 1,
+  "high_findings": 2
+}

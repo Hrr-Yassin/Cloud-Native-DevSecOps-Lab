@@ -1,0 +1,3 @@
+vcpu=2
+memory_total_mib=3915 memory_used_mib=1034
+root_total_mib=22739 root_used_mib=5721

@@ -16,7 +16,7 @@
     {
       "id": 1,
       "title": "Latest imported pipeline",
-      "description": "Use the run ID to retrieve the source workflow artifact.",
+      "description": "Most recent GitHub Actions result and the disposable local acceptance result.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -35,8 +35,19 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "lab_ci_run_success",
-          "legendFormat": "Validation",
+          "expr": "lab_ci_run_success{scope=\"\"}",
+          "legendFormat": "GitHub Actions",
+          "instant": true,
+          "range": false
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "lab_ci_run_success{scope=\"local\"}",
+          "legendFormat": "Local acceptance",
           "instant": true,
           "range": false
         }
@@ -82,7 +93,7 @@
     {
       "id": 2,
       "title": "Image security",
-      "description": "Signing and SBOM appear only if signed-release evidence is imported for the same run.",
+      "description": "Local scan and SBOM generation use the tested archive. GitHub signature and attestation require a release from the workflow run.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -101,8 +112,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "lab_ci_image_scan_pass",
-          "legendFormat": "Scan",
+          "expr": "lab_ci_image_scan_pass{scope=\"\"}",
+          "legendFormat": "GitHub scan",
           "instant": true,
           "range": false
         },
@@ -112,8 +123,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "lab_ci_release_signed",
-          "legendFormat": "Signature",
+          "expr": "lab_ci_release_signed{scope=\"\"}",
+          "legendFormat": "GitHub signature",
           "instant": true,
           "range": false
         },
@@ -123,8 +134,30 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "lab_ci_sbom_attested",
-          "legendFormat": "SBOM",
+          "expr": "lab_ci_sbom_attested{scope=\"\"}",
+          "legendFormat": "GitHub attestation",
+          "instant": true,
+          "range": false
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "lab_ci_image_scan_pass{scope=\"local\"}",
+          "legendFormat": "Local scan",
+          "instant": true,
+          "range": false
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "lab_ci_sbom_generated{scope=\"local\"}",
+          "legendFormat": "Local SBOM",
           "instant": true,
           "range": false
         }
@@ -215,7 +248,7 @@
     {
       "id": 4,
       "title": "Security findings by severity",
-      "description": "Counts from the most recent imported scanner reports.",
+      "description": "Severity counts from the imported GitHub and local scanner reports.",
       "type": "bargauge",
       "datasource": {
         "type": "prometheus",
@@ -234,8 +267,19 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "lab_ci_findings",
-          "legendFormat": "{{scanner}} / {{severity}}",
+          "expr": "lab_ci_findings{scope=\"\"}",
+          "legendFormat": "GitHub / {{scanner}} / {{severity}}",
+          "instant": true,
+          "range": false
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "lab_ci_findings{scope=\"local\"}",
+          "legendFormat": "Local / {{severity}}",
           "instant": true,
           "range": false
         }
@@ -254,7 +298,8 @@
           ],
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
       }
     },
     {
@@ -456,7 +501,7 @@
     {
       "id": 10,
       "title": "Pipeline gates",
-      "description": "Stage outcomes from the imported workflow report.",
+      "description": "Stage outcomes from the GitHub workflow or the disposable local acceptance run.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -475,8 +520,19 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "lab_ci_stage_success",
-          "legendFormat": "{{gate}}",
+          "expr": "lab_ci_stage_success{scope=\"\"}",
+          "legendFormat": "GitHub / {{gate}}",
+          "instant": true,
+          "range": false
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "lab_ci_stage_success{scope=\"local\"}",
+          "legendFormat": "Local / {{gate}}",
           "instant": true,
           "range": false
         }

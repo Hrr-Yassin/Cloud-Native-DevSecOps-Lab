@@ -46,6 +46,13 @@ class LibvirtPreflightTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "domain name belongs to an unmanaged object"):
             preflight.verify(ids, "destroy")
 
+    def test_partial_removal_does_not_report_absent_while_owned_objects_remain(self):
+        ids = self.register_owned_objects()
+        self.names[("net-list", "--all", "--name")] = "other-network"
+        self.assertEqual(preflight.verify(ids, "up"), "owned")
+        with self.assertRaisesRegex(ValueError, "required for configuration"):
+            preflight.verify(ids, "configure")
+
     def test_pool_cannot_overwrite_an_unmanaged_base_image(self):
         ids = self.register_owned_objects()
         key = str(self.path / "noble-base.qcow2")
@@ -71,6 +78,17 @@ class LibvirtPreflightTest(unittest.TestCase):
         self.state.write_text(json.dumps({"version": 4, "resources": [resource]}), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "state includes an unexpected resource"):
             preflight.state_ids(self.state)
+
+    def test_acceptance_profile_cannot_apply_primary_state(self):
+        identifiers = self.register_owned_objects()
+        resource = {
+            "mode": "managed", "type": "libvirt_domain", "name": "lab",
+            "instances": [{"attributes": {"name": preflight.NAME, "id": identifiers[("libvirt_domain", "lab")]}}],
+        }
+        self.state.write_text(json.dumps({"version": 4, "resources": [resource]}), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "unexpected resource instance"):
+            preflight.state_ids(self.state, "acceptance")
+        self.assertEqual(preflight.verify({}, "up", "acceptance"), "absent")
 
 
 if __name__ == "__main__":

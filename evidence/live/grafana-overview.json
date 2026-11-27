@@ -4,6 +4,9 @@
   "panels": {
     "Ready desk replicas": "Ready1",
     "Remediation progress": "resolved / high1",
-    "Falco alerts": "Warning"
+    "Falco alerts": "Warning",
+    "Latest imported pipeline": "Local acceptancePassed",
+    "Image security": "Local scanPassed",
+    "Security findings by severity": "Local / high2"
   }
 }

@@ -33,7 +33,7 @@
 
     - name: Confirm the instance marker before changes
       ansible.builtin.assert:
-        that: (lab_marker.content | b64decode | trim) == 'devsecops-lab'
+        that: (lab_marker.content | b64decode | trim) == (lab_expected_instance | default('devsecops-lab'))
 
     - name: Collect guest facts
       ansible.builtin.setup:

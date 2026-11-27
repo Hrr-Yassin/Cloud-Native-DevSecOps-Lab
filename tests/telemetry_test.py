@@ -43,6 +43,28 @@ class TelemetryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             metrics.render(report, None)
 
+    def test_local_snapshot_validates_archive_identity_and_omits_github_run(self):
+        archive = "a" * 64
+        deployment = {
+            "archive_sha256": archive,
+            "compliant": {"exit_code": 0, "cluster_deleted": True},
+            "noncompliant": {"exit_code": 1, "cluster_deleted": True, "admission_policy": "desk-pod-controls",
+                             "reason": "read-only container root filesystem required"},
+        }
+        scan = {"sha256": archive, "scanned_archive_matches_deployment_input": True, "blocking_findings": 0,
+                "sbom": {"format": "CycloneDX", "components": 1},
+                "findings_by_severity": dict.fromkeys(metrics.LEVELS, 0)}
+        output = metrics.render_local(deployment, scan)
+        self.assertIn("lab_ci_run_success 1\n", output)
+        self.assertIn("lab_ci_sbom_generated 1\n", output)
+        self.assertNotIn("lab_ci_run_id", output)
+        self.assertNotIn("lab_ci_release_signed", output)
+        deployment["noncompliant"]["exit_code"] = 0
+        self.assertIn("lab_ci_run_success 0\n", metrics.render_local(deployment, scan))
+        scan["sha256"] = "b" * 64
+        with self.assertRaisesRegex(ValueError, "different archives"):
+            metrics.render_local(deployment, scan)
+
     def export(self, source, *events):
         lines = "\n".join(json.dumps(item) for item in events) + "\nmalformed\n"
         result = subprocess.run([sys.executable, "scripts/export-soc-events.py", "--source", source],

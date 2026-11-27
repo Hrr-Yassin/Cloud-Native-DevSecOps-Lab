@@ -107,7 +107,7 @@ Open `http://127.0.0.1:13000/d/devsecops-lab`. The Grafana administrator usernam
 )
 ```
 
-The runtime check matches one newly generated marker in Falco and Loki, checks the Prometheus counter and requires a fresh Alertmanager notification. Successful checks write a dedicated directory under `.reports/runtime-check.XXXXXXXX`. Check the available replica count, resource panels, remediation counts, audit denials, and Falco warnings. Grafana shows no imported CI value until the operator imports an actual workflow report. To import a completed run, download its `lab-security-report` artifact from the repository. For a signed result, download `lab-signed-release` from the same run. Check the run and workflow identity in GitHub first. Use a loopback forward to the Pushgateway.
+The runtime check matches one newly generated marker in Falco and Loki, checks the Prometheus counter and requires a fresh Alertmanager notification. Successful checks write a dedicated directory under `.reports/runtime-check.XXXXXXXX`. Check the available replica count, resource panels, remediation counts, audit denials, and Falco warnings. To import a hosted run, download its `lab-security-report` artifact from the repository. For a signed result, download `lab-signed-release` from the same run. Check the run and workflow identity in GitHub first. Use a loopback forward to the Pushgateway.
 
 ```bash
 kubectl -n lab-observability port-forward --address 127.0.0.1 service/lab-ci 19091:9091
@@ -117,7 +117,13 @@ kubectl -n lab-observability port-forward --address 127.0.0.1 service/lab-ci 190
 python3 scripts/pipeline-metrics.py --report .reports/summary.json --push
 # For the same run that published a signed artifact:
 python3 scripts/pipeline-metrics.py --report .reports/summary.json --release .reports/release.json --push
+
+# Import the verified disposable acceptance run and its matching Docker scan.
+python3 scripts/pipeline-metrics.py --local-deployment evidence/live/k3d-ci-acceptance.json \
+  --local-scan evidence/live/docker-image-gate.json --push
 ```
+
+Grafana labels the disposable result **Local acceptance** and uses its matching scan for the local findings and SBOM panels. Hosted results appear under **GitHub Actions**. To verify the local panels in Chromium, add `--local-acceptance` to the browser command above.
 
 For portable SOC output, run the exporter against approved application, Falco, or audit JSON lines. It emits the timestamp, source, class, and severity. The existing SOC's Wazuh agent supports JSON collection, so an administrator could add a purpose-specific `localfile` mapping to receive the normalized stream. The exporter runs in this repository and writes NDJSON to stdout. SOC-side changes require separate authorization. [Wazuh JSON localfile support](https://documentation.wazuh.com/current/user-manual/reference/ossec-conf/localfile.html)
 
@@ -192,3 +198,45 @@ test "$(python3 infra/libvirt/preflight.py infra/libvirt/terraform.tfstate up)" 
 ```
 
 The workflow archives its cluster deletion result independently.
+
+## 7. Run a disposable host acceptance check
+
+The acceptance profile uses a separate 2-vCPU, 4-GiB VM, bridge, libvirt pool, OpenTofu state, SSH identity, TLS files, and loopback Kubernetes port. Use it to verify creation and teardown while the primary lab stays available. It reuses the checksum-verified Ubuntu download and the signed application archive.
+
+```bash
+export LAB_VM_PROFILE=acceptance
+scripts/lab-vm.sh up
+scripts/lab-vm.sh configure
+scripts/lab-vm.sh tunnel
+```
+
+In another terminal, use the acceptance kubeconfig and deploy the prepared release.
+
+```bash
+export LAB_VM_PROFILE=acceptance KUBECONFIG="$PWD/.lab/acceptance/admin.kubeconfig"
+scripts/local-release.sh deploy
+kubectl get nodes
+kubectl -n security-desk rollout status deployment/desk
+```
+
+The GitHub deployment step can also run inside this disposable guest with Docker Engine, Node 22, Chromium, and the checksum-pinned tool binaries. Copy the versioned source into the guest and keep state and credentials on the workstation. The local check uses its own K3d cluster and local image archive. [K3d cluster creation](https://k3d.io/stable/usage/commands/k3d_cluster_create/)
+
+```bash
+# Run inside the disposable guest after the native K3s check.
+sudo systemctl stop k3s
+scripts/install-ci-tools.sh "$PWD/.lab/bin" k3d kubectl age trivy
+export PATH="$PWD/.lab/bin:$PATH"
+docker build --pull --platform linux/amd64 --file Containerfile --tag dslab-candidate:ci .
+docker image save --output .lab/candidate.tar dslab-candidate:ci
+scripts/image-gates.sh .lab/candidate.tar
+scripts/ci-cluster.sh --local-acceptance .lab/candidate.tar compliant
+mv .reports "$(mktemp -d .lab/compliant.XXXXXXXX)/reports"
+scripts/ci-cluster.sh --local-acceptance .lab/candidate.tar noncompliant
+```
+
+Expect the noncompliant invocation to return a nonzero status with the read-only root filesystem denial. Both invocations should leave the K3d cluster absent. Save only sanitized outputs before removing the VM.
+
+```bash
+LAB_VM_PROFILE=acceptance scripts/lab-vm.sh destroy
+test "$(python3 infra/libvirt/preflight.py .lab/acceptance/terraform.tfstate up acceptance)" = absent
+```

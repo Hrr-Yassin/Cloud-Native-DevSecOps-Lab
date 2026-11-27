@@ -41,14 +41,30 @@ variable "guest_network" {
   }
 }
 
+variable "profile" {
+  description = "Use the persistent lab or a disposable host acceptance environment."
+  type        = string
+  default     = "primary"
+
+  validation {
+    condition     = contains(["primary", "acceptance"], var.profile)
+    error_message = "Select the primary or acceptance profile."
+  }
+}
+
 locals {
-  name = "devsecops-lab"
+  profiles = {
+    primary    = { name = "devsecops-lab", bridge = "virbr-dslab", memory = 8192, vcpu = 4 }
+    acceptance = { name = "devsecops-lab-check", bridge = "virbr-dscheck", memory = 4096, vcpu = 2 }
+  }
+  profile = local.profiles[var.profile]
+  name    = local.profile.name
 }
 
 resource "libvirt_network" "lab" {
   name      = local.name
   mode      = "nat"
-  bridge    = "virbr-dslab"
+  bridge    = local.profile.bridge
   addresses = [var.guest_network]
   autostart = true
 
@@ -62,7 +78,7 @@ resource "libvirt_pool" "lab" {
   type = "dir"
 
   target {
-    path = "/var/lib/libvirt/images/devsecops-lab"
+    path = "/var/lib/libvirt/images/${local.name}"
   }
 }
 
@@ -107,7 +123,7 @@ resource "libvirt_cloudinit_disk" "lab" {
     }]
     write_files = [{
       path        = "/etc/devsecops-lab-instance"
-      content     = "devsecops-lab"
+      content     = local.name
       owner       = "root:root"
       permissions = "0444"
     }]
@@ -118,13 +134,18 @@ resource "libvirt_cloudinit_disk" "lab" {
 resource "libvirt_domain" "lab" {
   name        = local.name
   description = "Dedicated single-node Cloud-Native DevSecOps laboratory"
-  memory      = 8192
-  vcpu        = 4
+  memory      = local.profile.memory
+  vcpu        = local.profile.vcpu
   cloudinit   = libvirt_cloudinit_disk.lab.id
   autostart   = false
 
   cpu {
     mode = "host-model"
+  }
+
+  lifecycle {
+    # Libvirt reports the resolved host model as custom once the guest starts.
+    ignore_changes = [cpu[0].mode]
   }
 
   disk {

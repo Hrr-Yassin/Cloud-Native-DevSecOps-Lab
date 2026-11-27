@@ -2,7 +2,17 @@
 set -euo pipefail
 umask 077
 cd "$(dirname "$0")/.."
-[[ "${GITHUB_ACTIONS:-}" == true && "${RUNNER_ENVIRONMENT:-}" == github-hosted ]]
+if [[ "${1:-}" == --local-acceptance ]]; then
+  shift
+  if [[ ${GITHUB_ACTIONS:-} == true || ! -r /etc/devsecops-lab-instance ||
+        $(cat /etc/devsecops-lab-instance) != devsecops-lab-check ]]; then
+    printf 'Local CI acceptance requires the disposable acceptance VM.\n' >&2
+    exit 64
+  fi
+  [[ ${3:-local} == local ]]
+else
+  [[ "${GITHUB_ACTIONS:-}" == true && "${RUNNER_ENVIRONMENT:-}" == github-hosted ]]
+fi
 candidate="${1:?Provide the locally built candidate or verified image digest}"
 fixture="${2:-compliant}"
 mode="${3:-local}"
@@ -66,12 +76,13 @@ printf '%s\n' 'The disposable K3s node reached Ready.' > .reports/cluster-create
 node=k3d-dslab-ci-server-0
 if [[ "$mode" == local ]]; then
   # Import the same archive that was scanned and will be transferred to the publisher.
-  k3d image import "$candidate" --cluster dslab-ci
+  ctr=(ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io)
+  docker exec -i "$node" "${ctr[@]}" images import --platform linux/amd64 - < "$candidate"
   normal=docker.io/library/dslab-candidate:ci
-  digest=$(docker exec "$node" k3s ctr --namespace k8s.io images ls | awk -v name="$normal" '$1 == name {print $3}')
+  digest=$(docker exec "$node" "${ctr[@]}" images ls | awk -v name="$normal" '$1 == name {print $3}')
   [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
   image="docker.io/library/dslab-candidate@$digest"
-  docker exec "$node" k3s ctr --namespace k8s.io images tag "$normal" "$image" >/dev/null
+  docker exec "$node" "${ctr[@]}" images tag "$normal" "$image" >/dev/null
 fi
 export LAB_TLS_DIR="$state/tls"
 scripts/deploy-desk.sh "$image"
@@ -98,17 +109,22 @@ unset op viewer
 
 kubectl -n kube-system port-forward --address 127.0.0.1 service/traefik 8443:443 > "$state/forward.log" 2>&1 &
 pf=$!
-https_ready=false
-for attempt in {1..20}; do
-  if curl --silent --fail --noproxy '*' --max-time 3 --cacert "$LAB_TLS_DIR/ca.crt" \
-    --resolve desk.lab.invalid:8443:127.0.0.1 https://desk.lab.invalid:8443/healthz >/dev/null; then
-    https_ready=true
-    break
-  fi
-  kill -0 "$pf"
-  sleep 2
-done
-[[ "$https_ready" == true ]] || { printf '%s\n' 'The TLS listener did not become ready.' >&2; exit 1; }
+wait_for_https() {
+  for attempt in {1..20}; do
+    if curl --silent --fail --noproxy '*' --max-time 3 --cacert "$LAB_TLS_DIR/ca.crt" \
+      --resolve desk.lab.invalid:8443:127.0.0.1 https://desk.lab.invalid:8443/readyz >/dev/null; then
+      return 0
+    fi
+    if ! kill -0 "$pf"; then
+      printf 'The lab HTTPS port-forward terminated.\n' >&2
+      return 1
+    fi
+    sleep 2
+  done
+  printf 'The trusted HTTPS readiness endpoint did not become available.\n' >&2
+  return 1
+}
+wait_for_https
 python3 scripts/http-acceptance.py --ca "$LAB_TLS_DIR/ca.crt" --fixture-credentials "$state/accounts.json" > .reports/https-acceptance.json
 node scripts/browser-acceptance.mjs --ca "$LAB_TLS_DIR/ca.crt" \
   --fixture-credentials "$state/accounts.json" --report-dir .reports/browser
@@ -126,4 +142,5 @@ jq -e '.event == "restored_workload_ready" and .findings == 1 and .volume == "is
   .reports/restored-workload.json >/dev/null
 kubectl rollout restart -n security-desk deployment/desk
 kubectl rollout status -n security-desk deployment/desk --timeout=120s
+wait_for_https
 python3 scripts/http-acceptance.py --ca "$LAB_TLS_DIR/ca.crt" --fixture-credentials "$state/accounts.json" --read-only > .reports/restart-acceptance.json

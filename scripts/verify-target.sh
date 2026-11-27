@@ -5,10 +5,10 @@ require_lab_context() {
   context="$(kubectl config current-context)"
   server="$(kubectl config view --minify -o 'jsonpath={.clusters[0].cluster.server}')"
   case "$context:$server" in
-    devsecops-lab:https://127.0.0.1:16443|k3d-dslab-ci:https://127.0.0.1:*)
+    devsecops-lab:https://127.0.0.1:16443|devsecops-lab-check:https://127.0.0.1:17443|k3d-dslab-ci:https://127.0.0.1:*)
       ;;
     *)
-      printf 'Select the dedicated devsecops-lab or k3d-dslab-ci context.\n' >&2
+      printf 'Select a dedicated VM or CI cluster context.\n' >&2
       return 1
       ;;
   esac

@@ -35,7 +35,7 @@ jobs:
       - name: Prepare checksum-verified tools
         run: |
           mkdir -p .reports .lab/bin
-          scripts/install-ci-tools.sh "$PWD/.lab/bin" actionlint age gitleaks k3d tofu trivy
+          scripts/install-ci-tools.sh "$PWD/.lab/bin" actionlint age gitleaks k3d kubectl tofu trivy
           python3 -m venv .lab/ci-python
           .lab/ci-python/bin/pip --disable-pip-version-check install semgrep==1.161.0 ansible-core==2.20.6
           printf '%s\n' "$PWD/.lab/bin" "$PWD/.lab/ci-python/bin" >> "$GITHUB_PATH"
@@ -45,7 +45,8 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm run check
           python3 -m compileall -q scripts
-          for file in scripts/*.sh; do bash -n "$file"; done
+          for file in scripts/*.sh scripts/lib/*.sh; do bash -n "$file"; done
+          for file in scripts/*.mjs scripts/lib/*.mjs; do node --check "$file"; done
           actionlint -shellcheck=
       - name: Test application and backup recovery
         id: tests

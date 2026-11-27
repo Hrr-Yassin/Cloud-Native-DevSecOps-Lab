@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { browserPage, openChromium } from './lib/chromium.mjs';
 
-const [chromium, passwordFile, report] = process.argv.slice(2);
+const [chromium, passwordFile, report, mode, scanFile = 'evidence/live/docker-image-gate.json'] = process.argv.slice(2);
 const origin = 'http://127.0.0.1:13000';
 const panels = {
   'Ready desk replicas': 'Ready1',
@@ -40,6 +40,14 @@ async function verify(page, password) {
 
 try {
   if (!chromium || !passwordFile || !report) throw new Error('Supply Chromium, a password file and a report directory');
+  if (mode && mode !== '--local-acceptance') throw new Error('Unrecognized dashboard acceptance mode');
+  if (mode === '--local-acceptance') {
+    const { findings_by_severity: findings } = JSON.parse(await readFile(scanFile, 'utf8'));
+    if (!Number.isInteger(findings?.high) || findings.high < 0) throw new Error('Expected local Trivy severity totals');
+    panels['Latest imported pipeline'] = 'Local acceptancePassed';
+    panels['Image security'] = 'Local scanPassed';
+    panels['Security findings by severity'] = `Local / high${findings.high}`;
+  }
   const password = (await readFile(passwordFile, 'utf8')).trim();
   if (password.length < 32) throw new Error('Expected the generated Grafana lab password');
   const profile = await mkdtemp(join(tmpdir(), 'dslab-dashboard-'));
