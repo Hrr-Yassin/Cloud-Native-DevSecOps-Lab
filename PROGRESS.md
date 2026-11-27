@@ -6,6 +6,9 @@
 | Infrastructure and workloads | OpenTofu libvirt VM, Ansible, dedicated guest firewall, K3s, RBAC, quotas, ingress, policies and secret generation | Manifest checks and certificate checks passed. VM and live controls are blocked by execution access. |
 | Security pipeline | GitHub Actions validation, controlled fixtures, scan and SBOM gates, keyless publishing and controlled promotion | Workflow source parsed. Hosted execution and package verification await a dedicated remote and permitted runner. |
 | Runtime and dashboard | Falco, Prometheus, Alertmanager, Grafana, Loki, Alloy, report importer and SOC event exporter | Report and SOC conversion tests passed. The live runtime and dashboard require the provisioned VM. |
-| AWS and portfolio | Opt-in Terraform module, README and diagrams, runbook, threat model, assessment, evidence and license | AWS remains undeployed. The weighted assessment uses only observed checks and gives 33/100. |
+| AWS and portfolio | Opt-in Terraform module, README and diagrams, runbook, threat model, assessment, evidence and license | AWS remains undeployed. The weighted assessment uses only observed checks and gives 34/100. |
 
 The managed environment exposed Fedora 45, 8 x86-64 logical CPUs, 31 GiB RAM, and 38 GiB project storage free. Libvirt, KVM, Podman namespaces, Docker, IPv4/Unix binds and public artifact DNS were unavailable to the session. The cached Chromium executable reported its version and failed during startup. The sandbox reported SELinux Disabled, leaving host enforcement pending independent verification. [Sanitized resource and blocker evidence](evidence/execution-boundary.md)
+
+
+The follow-up passed five Node and sixteen Python tests. The HTTP wire check used anonymous IPC and the same Node HTTP server construction as production. The infrastructure guard rejected unmanaged libvirt objects in fixtures, and the QEMU utility created a real 24 GiB thin-provisioned overlay from a synthetic base. Hosted acceptance now drives Chromium and exercises encrypted backup and restoration, with browser and runtime evidence checks still awaiting the deployment environment. [Local outputs](evidence/)

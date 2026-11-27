@@ -1,0 +1,6 @@
+{
+  "format": "qcow2",
+  "virtual-size": 25769803776,
+  "actual-size": 200704,
+  "backing-filename-format": "qcow2"
+}

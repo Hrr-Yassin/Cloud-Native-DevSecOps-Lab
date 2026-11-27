@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { createServer } from 'node:http';
 import process from 'node:process';
 import { createApplication } from './http.mjs';
+import { createServers } from './server.mjs';
 import { openStore } from './store.mjs';
 
 process.umask(0o077);
@@ -14,27 +14,8 @@ if (origin.protocol !== 'https:' || origin.origin !== PUBLIC_ORIGIN) {
 }
 const store = openStore(DB_PATH);
 const app = createApplication({ store, key, origin: origin.origin });
-const options = { headersTimeout: 5000, requestTimeout: 10000, keepAliveTimeout: 3000, maxHeaderSize: 8192 };
-const web = createServer(options, app.handle);
-const scraper = createServer(options, (req, res) => {
-  if (req.method !== 'GET' || req.url !== '/metrics') {
-    res.writeHead(404);
-    return res.end();
-  }
-  try {
-    res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4; charset=utf-8' });
-    return res.end(app.metrics());
-  } catch {
-    res.destroy();
-  }
-});
-
+const { web, scraper } = createServers(app);
 const servers = [web, scraper];
-for (const server of servers) {
-  server.maxRequestsPerSocket = 100;
-  server.maxConnections = 128;
-  server.setTimeout(12000, (socket) => socket.destroy());
-}
 web.listen(8080, '0.0.0.0');
 scraper.listen(9091, '0.0.0.0');
 

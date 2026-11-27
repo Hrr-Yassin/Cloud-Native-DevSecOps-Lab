@@ -8,27 +8,27 @@ guest_network="${LAB_GUEST_NETWORK:-172.30.88.0/24}"
 cloud_url=https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-amd64.img
 cloud_hash=04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94
 
+lock_vm() {
+  mkdir -p "$data"
+  exec 9>"$data/vm.lock"
+  if ! flock -n 9; then
+    printf 'Another operation is using the dedicated VM.\n' >&2
+    exit 1
+  fi
+  export TF_WORKSPACE=default
+}
+
 case "${1:-}" in
   up)
-    for tool in tofu virsh curl ssh-keygen ip python3; do command -v "$tool" >/dev/null; done
-    virsh --readonly --connect qemu:///system list --all --name >/dev/null
-    mkdir -p "$data"
-    tracked=$(tofu -chdir=infra/libvirt state list 2>/dev/null || true)
-    domains=$(virsh --readonly --connect qemu:///system list --all --name)
-    networks=$(virsh --readonly --connect qemu:///system net-list --all --name)
-    pools=$(virsh --readonly --connect qemu:///system pool-list --all --name)
-    for kind in domain network pool; do
-      case "$kind" in
-        domain) names="$domains" ;;
-        network) names="$networks" ;;
-        pool) names="$pools" ;;
-      esac
-      if grep -Fxq devsecops-lab <<< "$names" && ! grep -Fxq "libvirt_$kind.lab" <<< "$tracked"; then
-        printf 'The dedicated %s name is in use outside this OpenTofu state.\n' "$kind" >&2
+    for tool in tofu virsh curl ssh-keygen ip python3 flock mkisofs sha256sum; do
+      if ! command -v "$tool" >/dev/null; then
+        printf 'The dedicated VM requires %s on the host.\n' "$tool" >&2
         exit 1
       fi
     done
-    if ! grep -Fxq libvirt_network.lab <<< "$tracked"; then
+    lock_vm
+    ownership=$(python3 infra/libvirt/preflight.py "$existing_state" up)
+    if [[ "$ownership" == absent ]]; then
       if ip link show dev virbr-dslab >/dev/null 2>&1; then
         printf 'The dedicated bridge name is already in use.\n' >&2
         exit 1
@@ -67,20 +67,26 @@ for route in json.load(sys.stdin):
     tofu -chdir=infra/libvirt validate
     tofu -chdir=infra/libvirt apply -input=false -auto-approve
     ip_address=$(tofu -chdir=infra/libvirt output -raw guest_ip)
-    python3 -c 'import ipaddress, sys; assert ipaddress.ip_address(sys.argv[1]) in ipaddress.ip_network(sys.argv[2])' "$ip_address" "$guest_network"
-    python3 - "$ip_address" "$data" > "$data/inventory.json" <<'INVENTORY'
-import json, shlex, sys
-address, directory = sys.argv[1:]
+    inventory=$(python3 - "$ip_address" "$data" "$guest_network" <<'INVENTORY'
+import ipaddress, json, shlex, sys
+address, directory, cidr = sys.argv[1:]
+network = ipaddress.ip_network(cidr)
+ip = ipaddress.ip_address(address)
+if ip not in network or ip in (network.network_address, network.broadcast_address, network.network_address + 1):
+    raise SystemExit("The VM did not receive a usable lease in the dedicated network.")
 host = {
     "ansible_host": address, "ansible_user": "labops",
     "ansible_ssh_private_key_file": f"{directory}/ssh",
     "ansible_ssh_common_args": shlex.join([
-        "-o", f"UserKnownHostsFile={directory}/known_hosts",
+        "-F", f"{directory}/ssh.conf", "-o", f"UserKnownHostsFile={directory}/known_hosts",
+        "-o", "GlobalKnownHostsFile=/dev/null",
         "-o", "StrictHostKeyChecking=accept-new", "-o", "IdentitiesOnly=yes",
     ]),
 }
 print(json.dumps({"all": {"hosts": {"devsecops-lab": host}}}, indent=2))
 INVENTORY
+)
+    printf '%s\n' "$inventory" > "$data/inventory.json"
     cat > "$data/ssh.conf" <<SSH
 Host devsecops-lab
     HostName $ip_address
@@ -88,16 +94,24 @@ Host devsecops-lab
     IdentityFile "$data/ssh"
     IdentitiesOnly yes
     UserKnownHostsFile "$data/known_hosts"
+    GlobalKnownHostsFile /dev/null
     StrictHostKeyChecking yes
 SSH
     ;;
   configure)
+    lock_vm
+    python3 infra/libvirt/preflight.py "$existing_state" configure >/dev/null
     ansible-playbook -i "$data/inventory.json" infra/ansible/site.yml
     tmp=$(mktemp "$data/kubeconfig.XXXXXX")
     trap 'rm -f -- "$tmp"' EXIT
     ssh -F "$data/ssh.conf" devsecops-lab 'sudo cat /etc/rancher/k3s/k3s.yaml' |
       sed 's#https://127\.0\.0\.1:6443#https://127.0.0.1:16443#' > "$tmp"
     KUBECONFIG="$tmp" kubectl config rename-context default devsecops-lab
+    endpoint=$(KUBECONFIG="$tmp" kubectl config view --minify -o 'jsonpath={.clusters[0].cluster.server}')
+    if [[ "$endpoint" != https://127.0.0.1:16443 ]]; then
+      printf 'The lab kubeconfig does not target the dedicated tunnel.\n' >&2
+      exit 1
+    fi
     mv -- "$tmp" "$data/admin.kubeconfig"
     ;;
   tunnel)
@@ -105,6 +119,8 @@ SSH
     ;;
   destroy)
     [[ -s "$existing_state" ]]
+    lock_vm
+    python3 infra/libvirt/preflight.py "$existing_state" destroy >/dev/null
     export TF_VAR_cloud_image="$data/ubuntu-24.04-20261017.img"
     export TF_VAR_cloud_image_sha256="$cloud_hash"
     export TF_VAR_ssh_public_key TF_VAR_guest_network="$guest_network"

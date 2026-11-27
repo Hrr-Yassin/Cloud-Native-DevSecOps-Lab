@@ -20,7 +20,7 @@ customRules:
       desc: Observe a synthetic write to the dedicated runtime validation file.
       condition: >
         evt.type in (open, openat, openat2) and evt.is_open_write=true
-        and container.id != host and fd.name=/tmp/devsecops-lab-runtime-marker
-      output: "Synthetic runtime marker written (container=%container.id)"
+        and container.id != host and fd.name startswith /tmp/devsecops-lab-runtime-marker-
+      output: "Synthetic runtime marker written (file=%fd.name container=%container.id)"
       priority: WARNING
       tags: [lab, acceptance]

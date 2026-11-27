@@ -79,6 +79,10 @@ spec:
           expr: increase(lab_runtime_alerts_total[5m]) > 0 or (lab_runtime_alerts_total > 0 unless lab_runtime_alerts_total offset 5m)
           labels: { severity: warning }
           annotations: { summary: "Falco detected a lab runtime event" }
+        - alert: LabRuntimeFixtureObserved
+          expr: increase(lab_runtime_fixture_total[5m]) > 0 or (lab_runtime_fixture_total > 0 unless lab_runtime_fixture_total offset 5m)
+          labels: { severity: info }
+          annotations: { summary: "Falco detected the controlled lab runtime fixture" }
         - alert: LabPipelineFailed
           expr: lab_ci_run_success == 0
           for: 30s

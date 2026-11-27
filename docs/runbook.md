@@ -2,7 +2,7 @@
 
 ## 1. Start the lab VM
 
-Use a Linux x86-64 workstation with access to the system libvirt daemon and KVM, a working rootless Podman installation, and outbound HTTPS. Have a compatible `kubectl`, Helm 3, `jq`, `flock`, OpenSSL, an ISO builder supported by the libvirt provider, and Python with venv available. Use `virsh --connect qemu:///system list` and `podman info` to establish access before starting. Keep the Fedora host's SELinux policy in its operating mode.
+Use a Linux x86-64 workstation with access to the system libvirt daemon and KVM, a working rootless Podman installation, and outbound HTTPS. Have a compatible `kubectl`, Helm 3, `jq`, `flock`, OpenSSL, `mkisofs`, and Python with venv available. Use `virsh --connect qemu:///system list` and `podman info` to establish access before starting. Keep the Fedora host's SELinux policy in its operating mode.
 
 ```bash
 mkdir -p .lab/bin .lab/local-release
@@ -14,7 +14,7 @@ scripts/lab-vm.sh up
 scripts/lab-vm.sh configure
 ```
 
-On the first connection the isolated guest's SSH key is recorded in a lab-only known-hosts file. Future CLI connections check the stored key. Check routing on the workstation and use the default guest CIDR if available. Set `LAB_GUEST_NETWORK` to an unused 172.16.0.0/12 slice of size /24 before the first provision. Keep that value for teardown.
+On the first connection the isolated guest's SSH key is recorded in a lab-only known-hosts file. Future CLI connections check the stored key. Check routing on the workstation and use the default guest CIDR if available. Set `LAB_GUEST_NETWORK` to an unused 172.16.0.0/12 slice of size /24 before the first provision. Keep that value for teardown. The wrapper serializes VM operations and verifies live libvirt object IDs and volume ownership against local state before changing resources.
 
 Keep the API tunnel running in a separate terminal. In each lab administration terminal use the dedicated kubeconfig.
 
@@ -67,6 +67,8 @@ scripts/check-controls.sh "$(cat .lab/local-release/image.ref)"
 
 Chromium can use a dedicated profile with a pin derived from the verified leaf and a loopback-only hostname mapping. Sign in as the operator, add and resolve a synthetic finding, then sign in as the reviewer and confirm the status. Capture those views only after removing browser chrome, private URLs, and user or machine identifiers from the frame.
 
+The hosted acceptance job drives Chromium against its disposable lab and archives operator and reviewer PNGs. The job verifies the lab CA and hostname before launching, and captures the page only when the expected single synthetic remediation record is visible. Browser acceptance runs with the browser's normal sandbox. [GitHub Ubuntu runner software](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#browsers-and-drivers)
+
 ```bash
 desk_pin=$(openssl x509 -in .lab/tls/desk.crt -pubkey -noout |
   openssl pkey -pubin -outform DER | openssl dgst -sha256 -binary | openssl base64 -A)
@@ -92,7 +94,7 @@ kubectl -n lab-observability get secret lab-grafana-admin \
   -o 'jsonpath={.data.admin-password}' | base64 --decode
 ```
 
-Check the available replica count, resource panels, remediation counts, audit denials, and Falco warnings. Grafana shows no imported CI value until the operator imports an actual workflow report. To import a completed run, download its `lab-security-report` artifact from the repository. For a signed result, download `lab-signed-release` from the same run. Check the run and workflow identity in GitHub first. Use a loopback forward to the Pushgateway.
+The runtime check matches one newly generated marker in Falco and Loki, checks the Prometheus counter and requires a fresh Alertmanager notification. Successful checks write a dedicated directory under `.reports/runtime-check.XXXXXXXX`. Check the available replica count, resource panels, remediation counts, audit denials, and Falco warnings. Grafana shows no imported CI value until the operator imports an actual workflow report. To import a completed run, download its `lab-security-report` artifact from the repository. For a signed result, download `lab-signed-release` from the same run. Check the run and workflow identity in GitHub first. Use a loopback forward to the Pushgateway.
 
 ```bash
 kubectl -n lab-observability port-forward --address 127.0.0.1 service/lab-ci 19091:9091
@@ -115,7 +117,7 @@ For resource usage, record `kubectl top nodes` and `kubectl top pods -n lab-obse
 
 ## 4. Backup, restore and recover
 
-Install `age` for encrypted exports. Keep the private identity under operator control and save only the public recipient in the project-local recipient file. The restore check opens an isolated copy and verifies SQLite integrity and the finding count.
+Install `age` for encrypted exports. Keep the private identity under operator control and save only the public recipient in the project-local recipient file. The export stays on one ready Desk pod throughout snapshot creation and streaming. The restore check opens an isolated copy and verifies SQLite integrity and the finding count. Hosted acceptance performs the encrypted export and restore check before restarting the workload.
 
 ```bash
 age-keygen -o .lab/backup-identity

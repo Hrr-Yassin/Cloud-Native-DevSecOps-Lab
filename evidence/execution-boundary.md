@@ -6,7 +6,7 @@ Observed on Fedora 45 during development.
 | --- | --- |
 | CPU and memory | 8 logical x86-64 CPUs with VT-x capability. 31 GiB RAM, about 25 GiB available at inspection |
 | Storage | 38 GiB free on the project filesystem, 16 GiB tmpfs available |
-| Network | The execution namespace exposed loopback only. Netlink and IPv4/Unix socket binding returned operation not permitted. Public package and registry hostnames failed DNS resolution. |
+| Network | The execution namespace exposed loopback only. Netlink and IPv4/Unix socket binding returned operation not permitted. Public package and registry hostnames failed DNS resolution. Anonymous local IPC worked for an HTTP parser check without a bound listener. |
 | KVM and libvirt | The session did not expose the KVM device. The read-only system libvirt socket returned operation not permitted. User-session libvirt could not create its runtime directory. |
 | SELinux | The sandbox command reported Disabled. Host Enforcing status remains unverified from this view. |
 | Podman and Docker | Podman could not use the read-only default runtime. An isolated vfs runtime reached newuidmap and received operation not permitted. The Docker daemon socket denied access. |

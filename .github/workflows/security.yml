@@ -35,7 +35,7 @@ jobs:
       - name: Prepare checksum-verified tools
         run: |
           mkdir -p .reports .lab/bin
-          scripts/install-ci-tools.sh "$PWD/.lab/bin" actionlint gitleaks k3d tofu trivy
+          scripts/install-ci-tools.sh "$PWD/.lab/bin" actionlint age gitleaks k3d tofu trivy
           python3 -m venv .lab/ci-python
           .lab/ci-python/bin/pip --disable-pip-version-check install semgrep==1.161.0 ansible-core==2.20.6
           printf '%s\n' "$PWD/.lab/bin" "$PWD/.lab/ci-python/bin" >> "$GITHUB_PATH"
@@ -79,7 +79,7 @@ jobs:
         id: image_build
         run: |
           docker build --pull --platform linux/amd64 --file Containerfile --tag "$CANDIDATE" .
-          docker image save "$CANDIDATE" --output .lab/candidate.tar
+          docker image save --output .lab/candidate.tar "$CANDIDATE"
       - name: Gate image vulnerabilities and generate SBOM
         id: image_security
         run: scripts/image-gates.sh .lab/candidate.tar
@@ -87,7 +87,7 @@ jobs:
         id: cluster
         env:
           POLICY_FIXTURE: ${{ inputs.policy_fixture || 'compliant' }}
-        run: scripts/ci-cluster.sh "$CANDIDATE" "$POLICY_FIXTURE"
+        run: scripts/ci-cluster.sh .lab/candidate.tar "$POLICY_FIXTURE"
       - name: Render security report
         if: always()
         env:
@@ -114,6 +114,8 @@ jobs:
             .reports/secret-fixture.json
             .reports/https-acceptance.json
             .reports/restart-acceptance.json
+            .reports/browser/*.json
+            .reports/browser/*.png
             .reports/*.log
           retention-days: 14
       - name: Transfer the tested candidate to the publisher

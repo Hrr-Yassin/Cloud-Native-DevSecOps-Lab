@@ -13,6 +13,11 @@ download() {
     -o "$work/$asset"
   printf '%s  %s\n' "$checksum" "$work/$asset" | sha256sum --check --status
   case "$asset" in
+    age-*.tar.gz)
+      tar -xzf "$work/$asset" -C "$work" age/age age/age-keygen
+      install -m 0755 "$work/age/age" "$work/age/age-keygen" "$destination/"
+      return
+      ;;
     *.tar.gz) tar -xzf "$work/$asset" -C "$work" "$name";;
     *) mv -- "$work/$asset" "$work/$name";;
   esac
@@ -21,6 +26,9 @@ download() {
 
 for tool in "${@:2}"; do
   case "$tool" in
+    age)
+      download age FiloSottile/age v1.3.2 age-v1.3.2-linux-amd64.tar.gz \
+        cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10 ;;
     trivy)
       download trivy aquasecurity/trivy v0.74.0 trivy_0.74.0_Linux-64bit.tar.gz \
         2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a ;;

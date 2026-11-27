@@ -6,31 +6,31 @@ TAP version 13
 # Subtest: frontend has security headers and health probes use the real database
 ok 1 - frontend has security headers and health probes use the real database
   ---
-  duration_ms: 16.353087
+  duration_ms: 20.527929
   type: 'test'
   ...
 # Subtest: sign-in rotates sessions, configures secure cookies, logs out and expires
 ok 2 - sign-in rotates sessions, configures secure cookies, logs out and expires
   ---
-  duration_ms: 1384.121511
+  duration_ms: 1494.370326
   type: 'test'
   ...
 # Subtest: admin can manage findings, viewer can read, and request guards deny boundary failures
 ok 3 - admin can manage findings, viewer can read, and request guards deny boundary failures
   ---
-  duration_ms: 894.858319
+  duration_ms: 1031.41662
   type: 'test'
   ...
 # Subtest: a bounded sign-in fixture reaches the per-account rate limit and recovers
 ok 4 - a bounded sign-in fixture reaches the per-account rate limit and recovers
   ---
-  duration_ms: 3928.420541
+  duration_ms: 4345.480404
   type: 'test'
   ...
 # Subtest: an online SQLite backup restores records and a reopened app preserves state
 ok 5 - an online SQLite backup restores records and a reopened app preserves state
   ---
-  duration_ms: 441.31088
+  duration_ms: 520.029023
   type: 'test'
   ...
 1..5
@@ -41,4 +41,4 @@ ok 5 - an online SQLite backup restores records and a reopened app preserves sta
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 7250.158918
+# duration_ms 8056.490146

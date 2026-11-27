@@ -136,4 +136,6 @@ try {
   await load();
 } catch {
   view();
+} finally {
+  find('sign-in').disabled = false;
 }

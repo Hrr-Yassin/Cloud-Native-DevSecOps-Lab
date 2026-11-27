@@ -56,6 +56,16 @@ loki.source.file "audit" {
 loki.process "audit" {
   forward_to = [loki.write.lab.receiver]
 
+  stage.json {
+    expressions = {"stage_time" = "stageTimestamp"}
+  }
+
+  stage.timestamp {
+    source = "stage_time"
+    format = "RFC3339Nano"
+    action_on_failure = "skip"
+  }
+
   stage.match {
     selector = "{source=\"kubernetes-audit\"} |= \"validation_failure\" |= \"desk-pod-controls\""
     stage.metrics {
@@ -79,7 +89,7 @@ loki.process "runtime" {
   }
 
   stage.json {
-    expressions = {"priority" = "priority"}
+    expressions = {"priority" = "priority", "rule" = "rule"}
   }
 
   stage.labels {
@@ -95,6 +105,15 @@ loki.process "runtime" {
         description = "Falco warnings and higher-priority events"
         action = "inc"
         match_all = true
+        max_idle_duration = "168h"
+      }
+      metric.counter {
+        name = "runtime_fixture_total"
+        prefix = "lab_"
+        description = "Falco events from the lab runtime marker rule"
+        action = "inc"
+        source = "rule"
+        value = "DevSecOps Lab Runtime Marker"
         max_idle_duration = "168h"
       }
     }

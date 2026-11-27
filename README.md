@@ -2,7 +2,7 @@
 
 A local Kubernetes security lab built around **Security Desk**, a small application for recording findings and tracking remediation. Operators create findings and manage status. Reviewers can read findings. The same workload exercises build, policy, release, runtime, and recovery controls.
 
-**Verified in the development sandbox** are the application request-handler and SQLite paths, a backup restored to a separate database, TLS certificate issuance and hostname checking, manifest structure, CI report conversion, and the sanitized SOC export. The Kubernetes, GitHub Actions, container, runtime sensors, and live browser paths still require execution in an environment with those capabilities. See the [acceptance report](docs/assessment.md).
+**Verified in the development sandbox** are the application request-handler and SQLite paths, HTTP parsing over local IPC, a backup restored to a separate database, TLS certificate issuance and hostname checking, manifest structure, CI report conversion, and the sanitized SOC export. The Kubernetes, GitHub Actions, container, runtime sensors, and live browser paths still require execution in an environment with those capabilities. See the [acceptance report](docs/assessment.md).
 
 ## Architecture
 
