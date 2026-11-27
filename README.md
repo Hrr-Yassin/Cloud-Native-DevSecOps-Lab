@@ -1,8 +1,39 @@
 # Cloud-Native DevSecOps Lab
 
+![K3s](https://img.shields.io/badge/K3s-Kubernetes-FFC61C?logo=kubernetes&logoColor=white)
+![OpenTofu](https://img.shields.io/badge/OpenTofu-Infrastructure-623CE4?logo=opentofu&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-Observability-F46800?logo=grafana&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-2EA44F)
+
+[Architecture](#architecture) · [Release pipeline](#release-pipeline) · [Run the checks](#reproduce) · [Evidence](evidence/)
+
 A local Kubernetes security lab built around **Security Desk**, a small application for recording findings and tracking remediation. Operators create findings and manage status. Reviewers can read findings. The same workload exercises build, policy, release, runtime, and recovery controls.
 
-**Verified on the dedicated lab** are signed image deployment, Kubernetes access and admission controls, trusted HTTPS, Security Desk and Grafana in Chromium, a Falco alert through Loki and Alertmanager, and an encrypted backup restored into a fresh workload. A disposable guest verified complete VM teardown and the GitHub workflow deployment step on Docker and K3d. GitHub-hosted validation and promotion remain pending. AWS remains undeployed. [Acceptance report](docs/assessment.md) · [Sanitized evidence](evidence/)
+## Security Desk
+
+Operators record findings and move them through remediation. Reviewers have a read-only view of the same records.
+
+[![Security Desk operator view with the findings list and remediation controls](evidence/live/desk-operator.png)](evidence/live/desk-operator.png)
+
+[Open the reviewer screenshot](evidence/live/desk-reviewer.png)
+
+## Grafana dashboard
+
+The live lab dashboard brings application metrics, Kubernetes audit activity, and Falco runtime events into one view.
+
+[![Grafana overview captured during live lab validation](evidence/live/grafana-overview.png)](evidence/live/grafana-overview.png)
+
+## Validation
+
+| Area | Evidence |
+| --- | --- |
+| Dedicated K3s lab | Signed image deployment, access and admission controls, trusted HTTPS, and browser checks for Security Desk and Grafana |
+| Runtime monitoring | Falco alert observed through Loki and Alertmanager |
+| Recovery | Encrypted backup restored into a fresh workload |
+| Disposable VM | Full teardown and local execution of the GitHub workflow deployment step on Docker and K3d |
+| Pending | GitHub-hosted validation and promotion, and deployment of the optional AWS extension |
+
+[Acceptance report](docs/assessment.md) · [Sanitized evidence](evidence/)
 
 ## Architecture
 
@@ -32,6 +63,20 @@ flowchart LR
 ```
 
 The guest profile assigns 4 vCPUs, 8 GiB of RAM, and a 24 GiB thin-provisioned disk. The public interface is a loopback port-forward. The workload uses native Kubernetes admission, restricted Pod Security Standards, denied-by-default pod networking, and separate application and metrics ports.
+
+## Release pipeline
+
+```mermaid
+flowchart LR
+  Source["Source and manifests"] --> Gates["Tests and security checks"]
+  Gates --> Build["Build and scan OCI image"]
+  Build --> Acceptance["Deploy to disposable K3s"]
+  Acceptance --> Release["Sign image and attest SBOM"]
+  Release --> Registry["GitHub Container Registry"]
+  Registry --> Deploy["Verify and promote by digest"]
+```
+
+The diagram describes the workflow defined in the repository. The validation table records which steps have been exercised.
 
 ## Reproduce
 
