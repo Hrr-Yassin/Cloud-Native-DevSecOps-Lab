@@ -1,0 +1,38 @@
+[
+  {
+    "resource": "libvirt_cloudinit_disk.lab",
+    "actions": [
+      "delete"
+    ]
+  },
+  {
+    "resource": "libvirt_domain.lab",
+    "actions": [
+      "delete"
+    ]
+  },
+  {
+    "resource": "libvirt_network.lab",
+    "actions": [
+      "delete"
+    ]
+  },
+  {
+    "resource": "libvirt_pool.lab",
+    "actions": [
+      "delete"
+    ]
+  },
+  {
+    "resource": "libvirt_volume.base",
+    "actions": [
+      "delete"
+    ]
+  },
+  {
+    "resource": "libvirt_volume.root",
+    "actions": [
+      "delete"
+    ]
+  }
+]

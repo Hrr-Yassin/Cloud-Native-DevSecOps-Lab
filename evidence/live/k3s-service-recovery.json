@@ -1,0 +1,8 @@
+{
+  "k3s_invocation_changed": true,
+  "node_ready": true,
+  "deployment_available": true,
+  "loopback_forward_reopened": true,
+  "synthetic_remediation_before_restart": 200,
+  "synthetic_remediation_after_restart": 200
+}

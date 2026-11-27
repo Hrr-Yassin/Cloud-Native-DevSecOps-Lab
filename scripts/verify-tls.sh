@@ -7,9 +7,9 @@ scripts/issue-tls.sh "$directory"
 first=$(sha256sum "$directory/ca.crt" "$directory/desk.crt")
 scripts/issue-tls.sh "$directory"
 [[ "$first" == "$(sha256sum "$directory/ca.crt" "$directory/desk.crt")" ]]
-openssl verify -CAfile "$directory/ca.crt" -purpose sslserver \
+openssl verify -x509_strict -CAfile "$directory/ca.crt" -purpose sslserver \
   -verify_hostname desk.lab.invalid "$directory/desk.crt" | sed 's#^.*/##'
-if openssl verify -CAfile "$directory/ca.crt" -purpose sslserver \
+if openssl verify -x509_strict -CAfile "$directory/ca.crt" -purpose sslserver \
   -verify_hostname unrelated.invalid "$directory/desk.crt" >/dev/null 2>&1; then
   printf 'Unexpected success while verifying the unrelated hostname.\n' >&2
   exit 1

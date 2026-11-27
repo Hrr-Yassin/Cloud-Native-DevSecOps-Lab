@@ -41,6 +41,31 @@ fi
 grep -Fq 'violates PodSecurity' "$work/deny"
 record 'Restricted Pod Security denied the privilege-escalation fixture.'
 
+sed 's/limits: { cpu: 100m/limits: { cpu: 1500m/' "$work/compliant.yaml" > "$work/limits.yaml"
+if kubectl create --dry-run=server -f "$work/limits.yaml" > "$work/deny" 2>&1; then
+  printf 'The oversized container unexpectedly passed.\n' >&2
+  exit 1
+fi
+grep -Fq 'maximum cpu usage per Container is 1' "$work/deny"
+if kubectl create --dry-run=server -f - > "$work/deny" 2>&1 <<'STORAGE'; then
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: desk-quota-fixture
+  namespace: security-desk
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 3Gi
+STORAGE
+  printf 'The oversized storage claim unexpectedly passed.\n' >&2
+  exit 1
+fi
+grep -Fq 'exceeded quota: desk-quota' "$work/deny"
+grep -Fq 'requests.storage=3Gi' "$work/deny"
+record 'LimitRange denied a container beyond its CPU limit, and ResourceQuota denied excessive storage.'
+
 desk=system:serviceaccount:security-desk:desk
 observer=system:serviceaccount:security-desk:desk-observer
 promoter=system:serviceaccount:security-desk:lab-promoter
@@ -63,7 +88,7 @@ kubectl exec -n security-desk deploy/desk -- node -e '
   const root = fs.readFileSync("/proc/mounts", "utf8").split("\n")
     .map((entry) => entry.split(" ")).find((entry) => entry[1] === "/");
   assert.ok(root[3].split(",").includes("ro"));
-  assert.throws(() => fs.writeFileSync("/var/tmp/.desk-root-check", ""), { code: "EROFS" });
+  assert.throws(() => fs.writeFileSync("/.desk-root-check", ""), { code: "EROFS" });
   assert.equal(fs.existsSync("/var/run/secrets/kubernetes.io/serviceaccount/token"), false);
 '
 record 'Container uses UID 10001, a read-only root, zero effective capabilities, seccomp and no API token.'
@@ -79,7 +104,16 @@ metadata:
 NAMESPACE
 owned=true
 sed "s|IMAGE_FOR_ACCEPTANCE|$image|g" security/fixtures/network-probe.yaml | kubectl create -f - >/dev/null
-kubectl wait -n "$ns" --for=jsonpath='{.status.phase}'=Succeeded pod/desk-isolation --timeout=90s
-record 'A separate namespace resolved both application services and timed out when connecting.'
+for service in desk desk-metrics; do
+  kubectl -n security-desk get endpointslices -l "kubernetes.io/service-name=$service" -o json |
+    jq -e 'any(.items[]?.endpoints[]?; .conditions.ready == true)' >/dev/null
+done
+if ! kubectl wait -n "$ns" --for=jsonpath='{.status.phase}'=Succeeded pod/desk-isolation --timeout=90s; then
+  kubectl -n "$ns" logs pod/desk-isolation --tail=20 >&2 || true
+  kubectl -n "$ns" get pod desk-isolation -o json | jq -r '.status.containerStatuses[]?.state | .waiting.reason // .terminated.reason // "running"' >&2
+  exit 1
+fi
+kubectl -n "$ns" logs pod/desk-isolation | tee -a "$report"
+record 'A separate namespace resolved both ready application services and could not establish TCP connections.'
 kubectl create --dry-run=server -f "$work/$fixture.yaml"
 record "The selected $fixture fixture passed its pipeline gate."

@@ -121,6 +121,9 @@ jq -ces 'map({event, findings}) | if . == [
 ] then .[] else error("Unexpected encrypted backup or restore-check results") end' \
   "$state/backup.ndjson" > "$state/verified-backup.log"
 mv -- "$state/verified-backup.log" .reports/backup.log
+scripts/backup.sh restore-probe "$state/backup-identity" "$state/desk-backup.age" > .reports/restored-workload.json
+jq -e '.event == "restored_workload_ready" and .findings == 1 and .volume == "isolated"' \
+  .reports/restored-workload.json >/dev/null
 kubectl rollout restart -n security-desk deployment/desk
 kubectl rollout status -n security-desk deployment/desk --timeout=120s
 python3 scripts/http-acceptance.py --ca "$LAB_TLS_DIR/ca.crt" --fixture-credentials "$state/accounts.json" --read-only > .reports/restart-acceptance.json

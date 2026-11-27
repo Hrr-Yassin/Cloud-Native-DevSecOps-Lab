@@ -1,0 +1,2 @@
+Falco recorded the per-run marker and Loki received the event.
+Prometheus observed the fixture counter increment and Alertmanager activated a current fixture alert.

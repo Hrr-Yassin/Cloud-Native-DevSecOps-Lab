@@ -1,0 +1,2 @@
+Verified OK
+Scanned, signed and verified the local OCI archive.

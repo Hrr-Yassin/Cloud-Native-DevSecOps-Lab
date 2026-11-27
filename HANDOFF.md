@@ -1,7 +1,10 @@
 # Handoff
 
-The working repository is `Cloud-Native-DevSecOps-Lab`. Development and check outputs are indexed in [evidence](evidence/). Current weighted readiness is 34/100. The [acceptance assessment](docs/assessment.md) specifies where the target remains open.
+The lab is running in its dedicated KVM guest. The [acceptance matrix](docs/assessment.md) records 86/100 against the 90/100 target. The [evidence index](evidence/) links to the sanitized local results and screenshots. The [operator runbook](docs/runbook.md) covers operating the VM and reproducing the checks.
 
-Resume on a network-enabled workstation session with KVM, libvirt, rootless Podman, and working sockets. Follow the [runbook](docs/runbook.md) for the dedicated VM, locally signed build, Kubernetes controls, live browser and dashboard verification, runtime alert, encrypted restore, service restart and teardown. Record actual guest resource use and sanitize UI captures and logs before adding evidence.
+Two actions remain for full acceptance.
 
-A dedicated GitHub repository can then run the hosted compliant and noncompliant workflows, publish the signed release, and validate controlled promotion. Complete the score from the resulting artifacts. AWS and SOC-side deployments require separate authorization.
+1. Create the approved GitHub repository, run the compliant and noncompliant workflows, verify the signed GHCR release and promote its digest to a fresh hosted K3s environment. Import the resulting authentic run summary and release evidence into Grafana. Record which repository branch and environment controls the current GitHub plan enforces.
+2. Verify the encrypted backup, then apply the lab-owned six-resource destroy plan only after approval. Confirm that the six project resources are absent. Reprovision the guest and verify a Ready node and Desk. Keep the encrypted backup and its private recovery material outside the guest.
+
+The VM, Kubernetes administrative kubeconfig, local signing key, TLS material and portable encrypted backups are scoped to the lab. Use only the dedicated kubeconfig and project-local credentials when resuming. AWS deployment and any SOC-side changes require separate authorization.

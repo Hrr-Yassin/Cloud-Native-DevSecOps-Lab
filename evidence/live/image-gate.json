@@ -1,0 +1,26 @@
+{
+  "os": "debian",
+  "findings": [
+    {
+      "severity": "HIGH",
+      "count": 2
+    },
+    {
+      "severity": "LOW",
+      "count": 17
+    },
+    {
+      "severity": "MEDIUM",
+      "count": 35
+    },
+    {
+      "severity": "UNKNOWN",
+      "count": 2
+    }
+  ],
+  "blocking_findings": 0,
+  "sbom": {
+    "format": "CycloneDX",
+    "components": 15
+  }
+}

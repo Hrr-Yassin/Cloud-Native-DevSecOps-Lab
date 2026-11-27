@@ -37,6 +37,7 @@ alertmanager:
       group_interval: 5m
       repeat_interval: 4h
       receiver: local
+      routes: []
     receivers:
       - name: local
 grafana:

@@ -78,7 +78,8 @@ jobs:
       - name: Build candidate
         id: image_build
         run: |
-          docker build --pull --platform linux/amd64 --file Containerfile --tag "$CANDIDATE" .
+          docker build --pull --platform linux/amd64 --file Containerfile --tag "$CANDIDATE" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" .
           docker image save --output .lab/candidate.tar "$CANDIDATE"
       - name: Gate image vulnerabilities and generate SBOM
         id: image_security
@@ -113,6 +114,7 @@ jobs:
             .reports/sbom.cdx.json
             .reports/secret-fixture.json
             .reports/https-acceptance.json
+            .reports/restored-workload.json
             .reports/restart-acceptance.json
             .reports/browser/*.json
             .reports/browser/*.png

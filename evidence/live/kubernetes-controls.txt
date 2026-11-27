@@ -1,0 +1,10 @@
+Admission accepted the compliant fixture.
+Admission denied the writable-root fixture.
+Restricted Pod Security denied the privilege-escalation fixture.
+LimitRange denied a container beyond its CPU limit, and ResourceQuota denied excessive storage.
+Workload, observer and promotion RBAC matched their expected permissions.
+Container uses UID 10001, a read-only root, zero effective capabilities, seccomp and no API token.
+desk: ECONNREFUSED
+desk-metrics: ECONNREFUSED
+A separate namespace resolved both ready application services and could not establish TCP connections.
+The selected compliant fixture passed its pipeline gate.

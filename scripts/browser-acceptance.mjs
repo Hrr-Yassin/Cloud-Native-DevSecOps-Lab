@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createHash, X509Certificate } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { get } from 'node:https';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
+import { browserPage, openChromium } from './lib/chromium.mjs';
 
 const host = 'desk.lab.invalid';
 const port = 8443;
@@ -37,104 +37,8 @@ function certificatePin(ca) {
   });
 }
 
-function openChromium(executable, profile, pin) {
-  const process = spawn(executable, [
-    '--headless', '--disable-background-networking', '--disable-extensions', '--disable-sync',
-    '--no-first-run', '--no-default-browser-check', '--no-proxy-server',
-    `--user-data-dir=${profile}`, '--password-store=basic',
-    `--host-resolver-rules=MAP ${host} 127.0.0.1, MAP * ~NOTFOUND`,
-    `--ignore-certificate-errors-spki-list=${pin}`, '--remote-debugging-pipe', 'about:blank',
-  ], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
-  const commands = new Map();
-  let failure;
-  let id = 0;
-  let buffer = '';
-  const closed = new Promise((resolve) => process.once('close', resolve));
-
-  function fail(error) {
-    failure = error;
-    for (const command of commands.values()) {
-      clearTimeout(command.timeout);
-      command.reject(error);
-    }
-    commands.clear();
-  }
-
-  process.on('error', () => fail(new Error('Could not start Chromium')));
-  process.on('exit', () => fail(new Error('Chromium exited before completing acceptance')));
-  process.stdio[3].on('error', () => fail(new Error('Chromium command pipe closed')));
-  process.stdio[4].setEncoding('utf8').on('data', (chunk) => {
-    buffer += chunk;
-    if (buffer.length > 16 * 1024 * 1024) {
-      fail(new Error('Chromium response exceeded the fixture limit'));
-      return;
-    }
-    let end = buffer.indexOf('\0');
-    while (end !== -1) {
-      const frame = buffer.slice(0, end);
-      buffer = buffer.slice(end + 1);
-      let response;
-      try {
-        response = JSON.parse(frame);
-      } catch {
-        fail(new Error('Chromium returned an invalid protocol frame'));
-        return;
-      }
-      const command = commands.get(response.id);
-      if (command) {
-        commands.delete(response.id);
-        clearTimeout(command.timeout);
-        if (response.error) command.reject(new Error(`Chromium rejected ${command.method}`));
-        else command.resolve(response.result);
-      }
-      end = buffer.indexOf('\0');
-    }
-  });
-
-  return {
-    send(method, params = {}, sessionId) {
-      if (failure) return Promise.reject(failure);
-      const number = ++id;
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          commands.delete(number);
-          reject(new Error(`Chromium timed out during ${method}`));
-        }, 12000);
-        commands.set(number, { resolve, reject, timeout, method });
-        process.stdio[3].write(`${JSON.stringify({ id: number, method, params, sessionId })}\0`);
-      });
-    },
-    async stop() {
-      process.kill();
-      const watchdog = setTimeout(() => process.kill('SIGKILL'), 2000);
-      try {
-        await closed;
-      } finally {
-        clearTimeout(watchdog);
-      }
-    },
-  };
-}
-
 async function verifyBrowser(browser, accounts) {
-  const version = await browser.send('Browser.getVersion');
-  const { targetId } = await browser.send('Target.createTarget', { url: 'about:blank' });
-  const { sessionId } = await browser.send('Target.attachToTarget', { targetId, flatten: true });
-  const send = (method, params) => browser.send(method, params, sessionId);
-
-  async function evaluate(expression) {
-    const response = await send('Runtime.evaluate', { expression, returnByValue: true });
-    if (response.exceptionDetails) throw new Error('The browser could not evaluate the fixture UI');
-    return response.result.value;
-  }
-
-  async function expect(expression, message) {
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      if (await evaluate(expression)) return;
-      await delay(100);
-    }
-    throw new Error(message);
-  }
+  const { version, send, evaluate, expect } = await browserPage(browser);
 
   async function signIn(username, password) {
     await evaluate(`(() => {
@@ -198,7 +102,10 @@ try {
   }
   const pin = await certificatePin(await readFile(values.ca));
   const profile = await mkdtemp(join(tmpdir(), 'dslab-browser-'));
-  const browser = openChromium(binary, profile, pin);
+  const browser = openChromium(binary, profile, [
+    `--host-resolver-rules=MAP ${host} 127.0.0.1, MAP * ~NOTFOUND`,
+    `--ignore-certificate-errors-spki-list=${pin}`,
+  ]);
   try {
     const { version, operator, viewer } = await verifyBrowser(browser, accounts);
     const report = values['report-dir'];

@@ -23,6 +23,7 @@ table inet devsecops_guest {
   }
   chain output {
     type filter hook output priority -5; policy accept;
+    oifname "{{ ansible_facts.default_ipv4.interface }}" ip daddr {{ ansible_facts.default_ipv4.gateway }} tcp sport 22 accept
     oifname "{{ ansible_facts.default_ipv4.interface }}" jump uplink
   }
   chain forward {

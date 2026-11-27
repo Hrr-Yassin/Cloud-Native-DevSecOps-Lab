@@ -1,0 +1,3 @@
+memory_total_mib=7941 memory_used_mib=2680
+root_total_mib=22739 root_used_mib=7754
+node_cpu=262m node_cpu_utilization=6% node_workload_memory=2899Mi node_memory_utilization=36%

@@ -1,0 +1,7 @@
+{
+  "scope": "local live K3s deployment gate",
+  "corrected_fixture": "passed",
+  "noncompliant_fixture": "rejected",
+  "policy": "desk-pod-controls",
+  "reason": "read-only root filesystem required"
+}

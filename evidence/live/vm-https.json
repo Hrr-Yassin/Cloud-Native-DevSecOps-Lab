@@ -1,0 +1,19 @@
+{
+  "tls_frontend": 200,
+  "health": 200,
+  "readiness": 200,
+  "metrics_private": 404,
+  "unauthenticated_read": 401,
+  "operator_login": 200,
+  "viewer_login": 200,
+  "viewer_write_denied": 403,
+  "origin_denied": 403,
+  "csrf_denied": 403,
+  "invalid_severity_denied": 400,
+  "operator_created": 201,
+  "operator_resolved": 200,
+  "viewer_read": 200,
+  "logout": 204,
+  "revoked_session_denied": 401,
+  "viewer_logout": 204
+}

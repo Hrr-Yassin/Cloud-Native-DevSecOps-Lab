@@ -1,0 +1,8 @@
+{
+  "scope": "local OCI registry",
+  "digest": "sha256:835bc572765c755b49820ad1851a14b66d4d90bd17f6a69e4667790711838b5e",
+  "exact_manifest_preserved": true,
+  "cosign_signature_verified": true,
+  "cyclonedx_attestation_verified": true,
+  "transparency_log": "disabled for local test"
+}

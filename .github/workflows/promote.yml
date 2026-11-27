@@ -3,12 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       image:
-        description: Public GHCR image reference by SHA-256 digest
+        description: GHCR image reference by SHA-256 digest
         required: true
         type: string
 
 permissions:
   contents: read
+  packages: read
 concurrency:
   group: dedicated-lab-promotion
   cancel-in-progress: false
@@ -34,7 +35,14 @@ jobs:
       - name: Verify the signature and deploy the exact digest
         env:
           IMAGE: ${{ inputs.image }}
-        run: scripts/ci-cluster.sh "$IMAGE" compliant signed
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          export DOCKER_CONFIG
+          DOCKER_CONFIG=$(mktemp -d)
+          trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          unset GHCR_TOKEN
+          LAB_REGISTRY_AUTH_FILE="$DOCKER_CONFIG/config.json" scripts/ci-cluster.sh "$IMAGE" compliant signed
       - name: Archive deployment evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -43,6 +51,7 @@ jobs:
           include-hidden-files: true
           path: |
             .reports/https-acceptance.json
+            .reports/restored-workload.json
             .reports/restart-acceptance.json
             .reports/browser/*.json
             .reports/browser/*.png

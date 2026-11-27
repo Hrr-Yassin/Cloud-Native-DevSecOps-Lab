@@ -81,6 +81,7 @@ host = {
         "-F", f"{directory}/ssh.conf", "-o", f"UserKnownHostsFile={directory}/known_hosts",
         "-o", "GlobalKnownHostsFile=/dev/null",
         "-o", "StrictHostKeyChecking=accept-new", "-o", "IdentitiesOnly=yes",
+        "-o", "ServerAliveInterval=10", "-o", "ServerAliveCountMax=2",
     ]),
 }
 print(json.dumps({"all": {"hosts": {"devsecops-lab": host}}}, indent=2))
@@ -96,6 +97,9 @@ Host devsecops-lab
     UserKnownHostsFile "$data/known_hosts"
     GlobalKnownHostsFile /dev/null
     StrictHostKeyChecking yes
+    ConnectTimeout 10
+    ServerAliveInterval 10
+    ServerAliveCountMax 2
 SSH
     ;;
   configure)

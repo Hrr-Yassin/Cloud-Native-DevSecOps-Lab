@@ -1,0 +1,5 @@
+{
+  "event": "restored_workload_ready",
+  "findings": 1,
+  "volume": "isolated"
+}
