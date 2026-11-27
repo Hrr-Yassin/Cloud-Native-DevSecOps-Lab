@@ -1,0 +1,77 @@
+fullnameOverride: monitor
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    retentionSize: 3GB
+    resources:
+      requests: { cpu: 300m, memory: 384Mi }
+      limits: { cpu: "2", memory: 1536Mi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: { storage: 4Gi }
+alertmanager:
+  enabled: true
+  config:
+    route:
+      group_by: [alertname, namespace]
+      group_wait: 5s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: local
+    receivers:
+      - name: local
+grafana:
+  admin:
+    existingSecret: lab-grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  grafana.ini:
+    auth.anonymous:
+      enabled: false
+    users:
+      allow_sign_up: false
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+    security:
+      disable_gravatar: true
+      cookie_samesite: strict
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 1Gi
+  resources:
+    requests: { cpu: 100m, memory: 160Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  sidecar:
+    dashboards:
+      searchNamespace: lab-observability
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://lab-logs.lab-observability.svc.cluster.local:3100

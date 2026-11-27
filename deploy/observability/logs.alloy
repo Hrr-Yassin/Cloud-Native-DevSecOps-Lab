@@ -1,0 +1,108 @@
+discovery.kubernetes "desk" {
+  role = "pod"
+  namespaces {
+    names = ["security-desk"]
+  }
+}
+
+discovery.kubernetes "runtime" {
+  role = "pod"
+  namespaces {
+    names = ["lab-runtime"]
+  }
+}
+
+discovery.relabel "desk" {
+  targets = discovery.kubernetes.desk.targets
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    regex = "desk"
+    action = "keep"
+  }
+  rule {
+    target_label = "source"
+    replacement = "security-desk"
+  }
+}
+
+discovery.relabel "runtime" {
+  targets = discovery.kubernetes.runtime.targets
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    regex = "falco"
+    action = "keep"
+  }
+  rule {
+    target_label = "source"
+    replacement = "falco"
+  }
+}
+
+loki.source.kubernetes "desk" {
+  targets = discovery.relabel.desk.output
+  forward_to = [loki.write.lab.receiver]
+}
+
+loki.source.kubernetes "runtime" {
+  targets = discovery.relabel.runtime.output
+  forward_to = [loki.process.runtime.receiver]
+}
+
+loki.source.file "audit" {
+  targets = [{"__path__" = "/var/lab-audit/audit.log", "source" = "kubernetes-audit"}]
+  forward_to = [loki.process.audit.receiver]
+}
+
+loki.process "audit" {
+  forward_to = [loki.write.lab.receiver]
+
+  stage.match {
+    selector = "{source=\"kubernetes-audit\"} |= \"validation_failure\" |= \"desk-pod-controls\""
+    stage.metrics {
+      metric.counter {
+        name = "policy_denials_total"
+        prefix = "lab_"
+        description = "Desk admission-policy denials in the audit stream"
+        action = "inc"
+        match_all = true
+        max_idle_duration = "168h"
+      }
+    }
+  }
+}
+
+loki.process "runtime" {
+  forward_to = [loki.write.lab.receiver]
+
+  stage.label_keep {
+    values = ["source"]
+  }
+
+  stage.json {
+    expressions = {"priority" = "priority"}
+  }
+
+  stage.labels {
+    values = {"priority" = "priority"}
+  }
+
+  stage.match {
+    selector = "{source=\"falco\",priority=~\"Warning|Error|Critical|Alert|Emergency\"}"
+    stage.metrics {
+      metric.counter {
+        name = "runtime_alerts_total"
+        prefix = "lab_"
+        description = "Falco warnings and higher-priority events"
+        action = "inc"
+        match_all = true
+        max_idle_duration = "168h"
+      }
+    }
+  }
+}
+
+loki.write "lab" {
+  endpoint {
+    url = "http://lab-logs.lab-observability.svc.cluster.local:3100/loki/api/v1/push"
+  }
+}

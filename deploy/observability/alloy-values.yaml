@@ -1,0 +1,52 @@
+fullnameOverride: lab-collector
+rbac:
+  create: true
+  namespaces: [security-desk, lab-runtime]
+  clusterRules: []
+  rules:
+    - apiGroups: [""]
+      resources: [pods, pods/log]
+      verbs: [get, list, watch]
+controller:
+  type: statefulset
+  replicas: 1
+  volumes:
+    extra:
+      - name: audit
+        hostPath:
+          path: /var/log/k3s
+          type: Directory
+  volumeClaimTemplates:
+    - metadata:
+        name: positions
+      spec:
+        storageClassName: local-path
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 256Mi }
+alloy:
+  storagePath: /var/lib/alloy
+  configMap:
+    create: true
+  mounts:
+    extra:
+      - name: audit
+        mountPath: /var/lab-audit
+        readOnly: true
+      - name: positions
+        mountPath: /var/lib/alloy
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities: { drop: [ALL] }
+    seccompProfile: { type: RuntimeDefault }
+  resources:
+    requests: { cpu: 80m, memory: 100Mi }
+    limits: { cpu: 450m, memory: 384Mi }
+configReloader:
+  enabled: false
+service:
+  enabled: true
+  type: ClusterIP

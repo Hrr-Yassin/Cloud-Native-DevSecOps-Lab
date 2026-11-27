@@ -1,0 +1,32 @@
+destroy table inet devsecops_guest
+table inet devsecops_guest {
+  set private_v4 {
+    type ipv4_addr
+    flags interval
+    elements = { 10.0.0.0/8, 100.64.0.0/10, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16 }
+  }
+  chain input {
+    type filter hook input priority -5; policy accept;
+    iifname != "{{ ansible_facts.default_ipv4.interface }}" return
+    ct state established,related accept
+    udp sport 67 udp dport 68 accept
+    ip saddr {{ ansible_facts.default_ipv4.gateway }} tcp dport 22 accept
+    counter drop
+  }
+  chain uplink {
+    ct state established,related accept
+    udp sport 68 udp dport 67 accept
+    ip daddr {{ ansible_facts.default_ipv4.gateway }} udp dport 53 accept
+    ip daddr {{ ansible_facts.default_ipv4.gateway }} tcp dport 53 accept
+    ip daddr @private_v4 counter drop
+    meta nfproto ipv6 counter drop
+  }
+  chain output {
+    type filter hook output priority -5; policy accept;
+    oifname "{{ ansible_facts.default_ipv4.interface }}" jump uplink
+  }
+  chain forward {
+    type filter hook forward priority -5; policy accept;
+    oifname "{{ ansible_facts.default_ipv4.interface }}" jump uplink
+  }
+}

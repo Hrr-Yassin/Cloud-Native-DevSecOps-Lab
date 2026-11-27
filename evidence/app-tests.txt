@@ -1,0 +1,44 @@
+
+> cloud-native-devsecops-lab@1.0.0 test
+> node --disable-warning=ExperimentalWarning --experimental-test-isolation=none --test
+
+TAP version 13
+# Subtest: frontend has security headers and health probes use the real database
+ok 1 - frontend has security headers and health probes use the real database
+  ---
+  duration_ms: 16.353087
+  type: 'test'
+  ...
+# Subtest: sign-in rotates sessions, configures secure cookies, logs out and expires
+ok 2 - sign-in rotates sessions, configures secure cookies, logs out and expires
+  ---
+  duration_ms: 1384.121511
+  type: 'test'
+  ...
+# Subtest: admin can manage findings, viewer can read, and request guards deny boundary failures
+ok 3 - admin can manage findings, viewer can read, and request guards deny boundary failures
+  ---
+  duration_ms: 894.858319
+  type: 'test'
+  ...
+# Subtest: a bounded sign-in fixture reaches the per-account rate limit and recovers
+ok 4 - a bounded sign-in fixture reaches the per-account rate limit and recovers
+  ---
+  duration_ms: 3928.420541
+  type: 'test'
+  ...
+# Subtest: an online SQLite backup restores records and a reopened app preserves state
+ok 5 - an online SQLite backup restores records and a reopened app preserves state
+  ---
+  duration_ms: 441.31088
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7250.158918

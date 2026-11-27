@@ -1,0 +1,21 @@
+[Unit]
+Description=DevSecOps lab K3s server
+Wants=network-online.target
+Requires=lab-firewall.service
+After=network-online.target lab-firewall.service
+
+[Service]
+Type=notify
+Delegate=yes
+KillMode=process
+Restart=always
+RestartSec=5s
+TimeoutStartSec=0
+LimitNOFILE=1048576
+TasksMax=infinity
+ExecStartPre=-/sbin/modprobe br_netfilter
+ExecStartPre=-/sbin/modprobe overlay
+ExecStart=/usr/local/bin/k3s server
+
+[Install]
+WantedBy=multi-user.target

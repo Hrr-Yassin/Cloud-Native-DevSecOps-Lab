@@ -1,0 +1,31 @@
+rules:
+  - id: desk-no-dynamic-sql
+    languages: [javascript]
+    severity: ERROR
+    message: Use a static SQLite query and pass values as bound parameters.
+    pattern-either:
+      - pattern: db.prepare($LEFT + $RIGHT)
+      - pattern: db.exec($LEFT + $RIGHT)
+      - patterns:
+          - pattern-either:
+              - pattern: db.prepare($QUERY)
+              - pattern: db.exec($QUERY)
+          - metavariable-regex:
+              metavariable: $QUERY
+              regex: '^[A-Za-z_$][A-Za-z0-9_$]*(?:[.(]|$)'
+      - pattern-regex: '(?s)\bdb\.(?:prepare|exec)\s*\(\s*`[^`]{0,8192}\$\{'
+  - id: desk-no-html-injection-sinks
+    languages: [javascript]
+    severity: ERROR
+    message: Render supplied fields with DOM text APIs.
+    pattern-either:
+      - pattern: $ELEMENT.innerHTML = $EXPR
+      - pattern: $ELEMENT.outerHTML = $EXPR
+      - pattern: $ELEMENT.insertAdjacentHTML(...)
+  - id: desk-disable-dynamic-evaluation
+    languages: [javascript]
+    severity: ERROR
+    message: Keep application expressions and request fields separate.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)

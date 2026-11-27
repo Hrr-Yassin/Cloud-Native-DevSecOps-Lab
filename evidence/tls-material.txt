@@ -1,0 +1,2 @@
+desk.crt: OK
+Certificate issuance is idempotent. Hostname mismatch was rejected. Private keys use mode 0600.

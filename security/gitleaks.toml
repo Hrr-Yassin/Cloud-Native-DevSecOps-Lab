@@ -1,0 +1,10 @@
+title = "Cloud-Native DevSecOps Lab"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "lab-fixture-marker"
+description = "Noncredential marker reserved for the isolated secret-detection fixture"
+regex = '''LAB_TEST_TOKEN=(lab_fixture_[a-z0-9]{24})'''
+secretGroup = 1

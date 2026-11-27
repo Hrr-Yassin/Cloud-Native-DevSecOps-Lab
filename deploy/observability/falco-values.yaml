@@ -1,0 +1,26 @@
+driver:
+  enabled: true
+  kind: modern_ebpf
+  modernEbpf:
+    leastPrivileged: true
+tty: false
+falco:
+  json_output: true
+  rule_matching: all
+  time_format_iso_8601: true
+  syslog_output: { enabled: false }
+  stdout_output: { enabled: true }
+falcosidekick: { enabled: false }
+falcoctl:
+  artifact:
+    follow: { enabled: false }
+customRules:
+  lab-runtime.yaml: |-
+    - rule: DevSecOps Lab Runtime Marker
+      desc: Observe a synthetic write to the dedicated runtime validation file.
+      condition: >
+        evt.type in (open, openat, openat2) and evt.is_open_write=true
+        and container.id != host and fd.name=/tmp/devsecops-lab-runtime-marker
+      output: "Synthetic runtime marker written (container=%container.id)"
+      priority: WARNING
+      tags: [lab, acceptance]

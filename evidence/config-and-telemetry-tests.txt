@@ -1,0 +1,12 @@
+test_admission_fixtures_differ_only_in_the_writable_root (config_test.ConfigurationTest.test_admission_fixtures_differ_only_in_the_writable_root) ... ok
+test_ingress_and_monitoring_have_separate_service_ports (config_test.ConfigurationTest.test_ingress_and_monitoring_have_separate_service_ports) ... ok
+test_repository_yaml_parses_with_unique_mapping_keys (config_test.ConfigurationTest.test_repository_yaml_parses_with_unique_mapping_keys) ... ok
+test_mismatched_or_malformed_reports_are_rejected (telemetry_test.TelemetryTest.test_mismatched_or_malformed_reports_are_rejected) ... ok
+test_soc_export_emits_only_public_fields_and_selected_events (telemetry_test.TelemetryTest.test_soc_export_emits_only_public_fields_and_selected_events) ... ok
+test_soc_export_maps_runtime_and_admission_without_identifiers (telemetry_test.TelemetryTest.test_soc_export_maps_runtime_and_admission_without_identifiers) ... ok
+test_valid_snapshot_has_bounded_labels_and_signed_evidence (telemetry_test.TelemetryTest.test_valid_snapshot_has_bounded_labels_and_signed_evidence) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.416s
+
+OK

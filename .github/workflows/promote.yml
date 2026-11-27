@@ -1,0 +1,44 @@
+name: Promote signed release
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Public GHCR image reference by SHA-256 digest
+        required: true
+        type: string
+
+permissions:
+  contents: read
+concurrency:
+  group: dedicated-lab-promotion
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: lab
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install deployment tools
+        run: |
+          scripts/install-ci-tools.sh "$RUNNER_TEMP/verified-bin" cosign k3d
+          printf '%s\n' "$RUNNER_TEMP/verified-bin" >> "$GITHUB_PATH"
+      - name: Verify the signature and deploy the exact digest
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: scripts/ci-cluster.sh "$IMAGE" compliant signed
+      - name: Archive deployment evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: lab-deployment-evidence
+          include-hidden-files: true
+          path: |
+            .reports/https-acceptance.json
+            .reports/restart-acceptance.json
+            .reports/*.log
+          retention-days: 14

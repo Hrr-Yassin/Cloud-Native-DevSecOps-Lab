@@ -1,0 +1,141 @@
+---
+- name: Install the isolated K3s lab
+  hosts: devsecops-lab
+  become: true
+  gather_facts: false
+  vars:
+    k3s_version: v1.35.10+k3s1
+    k3s_sha256: 5cd49f0faca5b2ea4355d4761e7b1445b8aa05cd50e612fd9c370551db49e5e2
+  handlers:
+    - name: Restart guest firewall
+      ansible.builtin.systemd_service:
+        name: lab-firewall
+        daemon_reload: true
+        state: restarted
+    - name: Restart K3s
+      ansible.builtin.systemd_service:
+        name: k3s
+        daemon_reload: true
+        state: restarted
+  tasks:
+    - name: Wait for the dedicated SSH endpoint
+      ansible.builtin.wait_for_connection:
+        timeout: 360
+
+    - name: Wait for VM initialization
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+
+    - name: Inspect the instance marker
+      ansible.builtin.slurp:
+        src: /etc/devsecops-lab-instance
+      register: lab_marker
+
+    - name: Confirm the instance marker before changes
+      ansible.builtin.assert:
+        that: (lab_marker.content | b64decode | trim) == 'devsecops-lab'
+
+    - name: Collect guest facts
+      ansible.builtin.setup:
+
+    - name: Confirm the guest platform
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Ubuntu'
+          - ansible_facts.distribution_version == '24.04'
+          - ansible_facts.architecture == 'x86_64'
+          - ansible_facts.default_ipv4.interface is match('^[A-Za-z0-9_.-]+$')
+          - ansible_facts.default_ipv4.gateway is match('^172[.](1[6-9]|2[0-9]|3[01])[.][0-9]+[.]1$')
+
+    - name: Install guest dependencies
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        name:
+          - ca-certificates
+          - nftables
+        state: present
+
+    - name: Create guest configuration directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: /etc/nftables.d, mode: '0755' }
+        - { path: /etc/rancher/k3s, mode: '0700' }
+        - { path: /var/log/k3s, mode: '0700' }
+
+    - name: Configure the dedicated guest firewall table
+      ansible.builtin.template:
+        src: guest.nft.j2
+        dest: /etc/nftables.d/devsecops-lab.nft
+        owner: root
+        group: root
+        mode: '0640'
+        validate: nft -c -f %s
+      notify: Restart guest firewall
+
+    - name: Install the guest firewall service
+      ansible.builtin.copy:
+        src: templates/lab-firewall.service
+        dest: /etc/systemd/system/lab-firewall.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart guest firewall
+
+    - name: Enable the guest firewall service
+      ansible.builtin.systemd_service:
+        name: lab-firewall
+        daemon_reload: true
+        state: started
+        enabled: true
+
+    - name: Download the pinned K3s binary
+      ansible.builtin.get_url:
+        url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version | urlencode }}/k3s"
+        checksum: "sha256:{{ k3s_sha256 }}"
+        dest: /usr/local/bin/k3s
+        mode: '0755'
+      notify: Restart K3s
+
+    - name: Install the K3s configuration
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/etc/rancher/k3s/{{ item }}"
+        owner: root
+        group: root
+        mode: '0600'
+      loop:
+        - config.yaml
+        - audit.yaml
+      notify: Restart K3s
+
+    - name: Install the K3s service
+      ansible.builtin.copy:
+        src: templates/k3s.service
+        dest: /etc/systemd/system/k3s.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart K3s
+
+    - name: Apply configuration changes before readiness
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable K3s
+      ansible.builtin.systemd_service:
+        name: k3s
+        state: started
+        enabled: true
+
+    - name: Wait for the Kubernetes node
+      ansible.builtin.command: /usr/local/bin/k3s kubectl wait --for=condition=Ready nodes --all --timeout=30s
+      changed_when: false
+      register: node_ready
+      until: node_ready.rc == 0
+      retries: 7
+      delay: 5

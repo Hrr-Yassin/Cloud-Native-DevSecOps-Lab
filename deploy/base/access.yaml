@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: desk
+  namespace: security-desk
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lab-promoter
+  namespace: security-desk
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: promote-desk
+  namespace: security-desk
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["desk"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: promote-desk
+  namespace: security-desk
+subjects:
+  - kind: ServiceAccount
+    name: lab-promoter
+    namespace: security-desk
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: promote-desk
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: desk-observer
+  namespace: security-desk
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: desk-observer
+  namespace: security-desk
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: desk-observer
+  namespace: security-desk
+subjects:
+  - kind: ServiceAccount
+    name: desk-observer
+    namespace: security-desk
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: desk-observer

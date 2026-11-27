@@ -1,0 +1,102 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: security-desk
+  namespace: lab-observability
+  labels:
+    release: monitor
+spec:
+  namespaceSelector:
+    matchNames: [security-desk]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: desk-metrics
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lab-collector
+  namespace: lab-observability
+  labels:
+    release: monitor
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: lab-collector
+      app.kubernetes.io/name: alloy
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lab-ci
+  namespace: lab-observability
+  labels:
+    release: monitor
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: lab-ci
+  endpoints:
+    - port: http
+      path: /metrics
+      honorLabels: true
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lab-security
+  namespace: lab-observability
+  labels:
+    release: monitor
+spec:
+  groups:
+    - name: desk.security
+      rules:
+        - alert: SecurityDeskUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="security-desk",deployment="desk"} < 1 or absent(kube_deployment_status_replicas_available{namespace="security-desk",deployment="desk"})
+          for: 2m
+          labels: { severity: critical }
+          annotations: { summary: "No ready Security Desk replica" }
+        - alert: DeskSignInsDenied
+          expr: sum(increase(desk_login_denied_total[5m])) > 5
+          for: 30s
+          labels: { severity: warning }
+          annotations: { summary: "More than five denied desk logins in five minutes" }
+        - alert: LabAdmissionDenial
+          expr: increase(lab_policy_denials_total[5m]) > 0 or (lab_policy_denials_total > 0 unless lab_policy_denials_total offset 5m)
+          labels: { severity: warning }
+          annotations: { summary: "A workload in the lab was denied by admission" }
+        - alert: LabRuntimeAlertObserved
+          expr: increase(lab_runtime_alerts_total[5m]) > 0 or (lab_runtime_alerts_total > 0 unless lab_runtime_alerts_total offset 5m)
+          labels: { severity: warning }
+          annotations: { summary: "Falco detected a lab runtime event" }
+        - alert: LabPipelineFailed
+          expr: lab_ci_run_success == 0
+          for: 30s
+          labels: { severity: warning }
+          annotations: { summary: "The latest imported CI run failed a security gate" }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-access
+  namespace: lab-observability
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grafana, loki, prometheus, alertmanager, alloy, prometheus-pushgateway]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}

@@ -1,0 +1,15 @@
+write-kubeconfig-mode: "0600"
+tls-san-security: true
+secrets-encryption: true
+disable:
+  - servicelb
+kubelet-arg:
+  - anonymous-auth=false
+  - read-only-port=0
+kube-apiserver-arg:
+  - audit-policy-file=/etc/rancher/k3s/audit.yaml
+  - audit-log-path=/var/log/k3s/audit.log
+  - audit-log-maxage=7
+  - audit-log-maxbackup=4
+  - audit-log-maxsize=25
+  - audit-log-mode=batch

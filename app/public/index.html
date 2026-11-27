@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Security Desk</title>
+    <link rel="stylesheet" href="/style.css">
+    <script type="module" src="/desk.mjs"></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="shell head">
+        <a href="/" class="brand">Security Desk</a>
+        <span id="account" aria-live="polite"></span>
+        <button type="button" id="sign-out" class="secondary" hidden>Sign out</button>
+      </div>
+    </header>
+    <main class="shell">
+      <section id="login" class="login panel" aria-labelledby="sign-in-title">
+        <h1 id="sign-in-title">Sign in</h1>
+        <p>Review findings and track remediation.</p>
+        <form id="login-form" method="post" action="/api/session">
+          <label for="username">Username</label>
+          <input id="username" name="username" autocomplete="username" minlength="3" maxlength="32" required>
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" minlength="16" maxlength="128" required>
+          <button type="submit">Sign in</button>
+        </form>
+      </section>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+      <section id="workspace" aria-labelledby="workspace-title" hidden>
+        <h1 id="workspace-title">Security findings</h1>
+        <form id="add-form" method="post" action="/api/findings" class="panel add" hidden>
+          <div>
+            <label for="title">Finding title</label>
+            <input id="title" name="title" minlength="4" maxlength="120" required>
+          </div>
+          <div>
+            <label for="severity">Severity</label>
+            <select id="severity" name="severity">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <button type="submit">Add finding</button>
+        </form>
+        <div class="panel list">
+          <table aria-label="Findings">
+            <thead><tr><th scope="col">Finding</th><th scope="col">Severity</th><th scope="col">Status</th></tr></thead>
+            <tbody id="findings"></tbody>
+          </table>
+          <p id="empty">No findings yet.</p>
+        </div>
+        <button type="button" class="secondary" id="load-more" hidden>Load more</button>
+      </section>
+    </main>
+  </body>
+</html>

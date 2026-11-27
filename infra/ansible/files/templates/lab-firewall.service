@@ -1,0 +1,13 @@
+[Unit]
+Description=DevSecOps lab guest network boundary
+After=network-online.target
+Wants=network-online.target
+Before=k3s.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/devsecops-lab.nft
+
+[Install]
+WantedBy=multi-user.target

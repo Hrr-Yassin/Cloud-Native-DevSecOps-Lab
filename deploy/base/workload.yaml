@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: desk-data
+  namespace: security-desk
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: desk
+  namespace: security-desk
+  labels:
+    app.kubernetes.io/name: desk
+spec:
+  selector:
+    app.kubernetes.io/name: desk
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: desk-metrics
+  namespace: security-desk
+  labels:
+    app.kubernetes.io/name: desk-metrics
+spec:
+  selector:
+    app.kubernetes.io/name: desk
+  ports:
+    - { name: metrics, port: 9091, targetPort: metrics }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: desk
+  namespace: security-desk
+  labels:
+    app.kubernetes.io/name: desk
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: desk
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: desk
+    spec:
+      serviceAccountName: desk
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: desk
+          image: IMAGE_FOR_ACCEPTANCE
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 9091 }
+          env:
+            - { name: PUBLIC_ORIGIN, value: 'https://desk.lab.invalid:8443' }
+          resources:
+            requests: { cpu: 150m, memory: 128Mi, ephemeral-storage: 64Mi }
+            limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 512Mi }
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 24
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: tmp, mountPath: /tmp }
+            - { name: session, mountPath: /run/desk, readOnly: true }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: desk-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: session
+          secret:
+            secretName: desk-session
+            defaultMode: 0440

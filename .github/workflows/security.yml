@@ -1,0 +1,164 @@
+name: Security gates
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      policy_fixture:
+        description: Submit a compliant or intentionally rejected pod to admission
+        type: choice
+        required: true
+        default: compliant
+        options: [compliant, noncompliant]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    env:
+      SEMGREP_SEND_METRICS: "off"
+      CANDIDATE: dslab-candidate:ci
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "22.23.5"
+          package-manager-cache: false
+      - name: Prepare checksum-verified tools
+        run: |
+          mkdir -p .reports .lab/bin
+          scripts/install-ci-tools.sh "$PWD/.lab/bin" actionlint gitleaks k3d tofu trivy
+          python3 -m venv .lab/ci-python
+          .lab/ci-python/bin/pip --disable-pip-version-check install semgrep==1.161.0 ansible-core==2.20.6
+          printf '%s\n' "$PWD/.lab/bin" "$PWD/.lab/ci-python/bin" >> "$GITHUB_PATH"
+      - name: Validate source
+        id: source
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check
+          python3 -m compileall -q scripts
+          for file in scripts/*.sh; do bash -n "$file"; done
+          actionlint -shellcheck=
+      - name: Test application and backup recovery
+        id: tests
+        run: |
+          npm test | tee .reports/app-tests.txt
+          python3 -m unittest discover -s tests -p '*_test.py'
+          scripts/verify-tls.sh
+        shell: bash
+      - name: Gate SAST
+        id: semgrep
+        run: semgrep scan --config security/semgrep.yaml --error --strict --metrics off --json --output .reports/semgrep.json app
+      - name: Gate secrets and validate controlled marker
+        id: gitleaks
+        run: scripts/check-secrets.sh
+      - name: Gate application dependencies
+        id: dependencies
+        run: npm audit --omit=dev --audit-level=high --json > .reports/npm-audit.json
+      - name: Validate and scan IaC
+        id: iac
+        run: |
+          for module in libvirt aws; do
+            tofu -chdir="infra/$module" init -backend=false -input=false
+            tofu -chdir="infra/$module" validate -no-color
+          done
+          ansible-playbook -i 'devsecops-lab,' --syntax-check infra/ansible/site.yml
+          mkdir -p .lab/iac
+          cp -R deploy/base deploy/policy infra/aws .lab/iac/
+          find .lab/iac -name .terraform -prune -exec rm -rf {} +
+          trivy config --severity HIGH,CRITICAL --exit-code 1 --format json --output .reports/iac.json .lab/iac
+      - name: Build candidate
+        id: image_build
+        run: |
+          docker build --pull --platform linux/amd64 --file Containerfile --tag "$CANDIDATE" .
+          docker image save "$CANDIDATE" --output .lab/candidate.tar
+      - name: Gate image vulnerabilities and generate SBOM
+        id: image_security
+        run: scripts/image-gates.sh .lab/candidate.tar
+      - name: Gate disposable K3s deployment and verify expected HTTPS behavior
+        id: cluster
+        env:
+          POLICY_FIXTURE: ${{ inputs.policy_fixture || 'compliant' }}
+        run: scripts/ci-cluster.sh "$CANDIDATE" "$POLICY_FIXTURE"
+      - name: Render security report
+        if: always()
+        env:
+          GATE_SOURCE: ${{ steps.source.outcome }}
+          GATE_TESTS: ${{ steps.tests.outcome }}
+          GATE_SEMGREP: ${{ steps.semgrep.outcome }}
+          GATE_GITLEAKS: ${{ steps.gitleaks.outcome }}
+          GATE_DEPENDENCIES: ${{ steps.dependencies.outcome }}
+          GATE_IAC: ${{ steps.iac.outcome }}
+          GATE_IMAGE_BUILD: ${{ steps.image_build.outcome }}
+          GATE_IMAGE_SECURITY: ${{ steps.image_security.outcome }}
+          GATE_CLUSTER: ${{ steps.cluster.outcome }}
+        run: python3 scripts/security-report.py
+      - name: Archive security evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: lab-security-report
+          include-hidden-files: true
+          path: |
+            .reports/summary.json
+            .reports/app-tests.txt
+            .reports/sbom.cdx.json
+            .reports/secret-fixture.json
+            .reports/https-acceptance.json
+            .reports/restart-acceptance.json
+            .reports/*.log
+          retention-days: 14
+      - name: Transfer the tested candidate to the publisher
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: tested-candidate
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            .lab/candidate.tar
+            .reports/sbom.cdx.json
+          retention-days: 1
+
+  publish:
+    name: Sign and publish immutable image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: tested-candidate
+          path: artifacts
+      - name: Install Cosign
+        run: |
+          scripts/install-ci-tools.sh "$RUNNER_TEMP/verified-bin" cosign
+          printf '%s\n' "$RUNNER_TEMP/verified-bin" >> "$GITHUB_PATH"
+      - name: Push, sign, attest and verify
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: scripts/publish.sh
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: lab-signed-release
+          path: release-evidence/release.json
+          if-no-files-found: error
+          retention-days: 30

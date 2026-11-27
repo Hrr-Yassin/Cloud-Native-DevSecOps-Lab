@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: desk-isolation
+  namespace: lab-network-check
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+    - name: fixture
+      image: IMAGE_FOR_ACCEPTANCE
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities: { drop: ["ALL"] }
+        readOnlyRootFilesystem: true
+      resources:
+        requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 32Mi }
+        limits: { cpu: 100m, memory: 96Mi, ephemeral-storage: 128Mi }
+      args:
+        - -e
+        - |
+          const assert = require('node:assert/strict');
+          const { lookup } = require('node:dns').promises;
+          async function probe() {
+            for (const [service, port] of [['desk', 8080], ['desk-metrics', 9091]]) {
+              const name = service + '.security-desk.svc.cluster.local';
+              await lookup(name);
+              await assert.rejects(fetch('http://' + name + ':' + port,
+                { signal: AbortSignal.timeout(4000) }), { name: 'TimeoutError' });
+            }
+          }
+          probe().catch(() => process.exit(1));
